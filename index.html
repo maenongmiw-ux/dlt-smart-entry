@@ -1492,10 +1492,48 @@ async function driveApi(url, opts={}){
   return res;
 }
 
+
+function _decodeArrayBufferToText(ab){
+  // TXT = ANSI (Windows-874). ใช้ decoder นี้ทั้ง import/export ให้ความยาว fixed-length ไม่เพี้ยน
+  try{
+    return new TextDecoder("windows-874").decode(new Uint8Array(ab));
+  }catch(e){
+    try{ return new TextDecoder("tis-620").decode(new Uint8Array(ab)); }catch(e2){}
+  }
+  // fallback (อาจทำให้ภาษาไทยเพี้ยน แต่กันแอปล่ม)
+  try{ return new TextDecoder("utf-8").decode(new Uint8Array(ab)); }catch(e3){}
+  return "";
+}
+async function _driveReadText(res){
+  const ab = await res.arrayBuffer();
+  return _decodeArrayBufferToText(ab);
+}
+
+// TEXT config parser (key=value)
+function _parseConfigTxt(txt){
+  const out = {};
+  (txt||"").split(/\r?\n/).forEach(line=>{
+    line = String(line||"").trim();
+    if(!line || line.startsWith("#")) return;
+    const i = line.indexOf("=");
+    if(i<0) return;
+    const k = line.slice(0,i).trim();
+    const v = line.slice(i+1).trim();
+    out[k] = v;
+  });
+  return out;
+}
+function _stringifyConfigTxt(obj){
+  const lines = [];
+  if(obj.folderId) lines.push("folderId="+obj.folderId);
+  if(obj.folderName) lines.push("folderName="+obj.folderName);
+  return lines.join("\n") + "\n";
+}
+
 // ---------- Config in appDataFolder ----------
 async function driveEnsureConfig(){
   // 1) Find config file in appDataFolder
-  const q = encodeURIComponent("name='DLT_APP_CONFIG.json' and trashed=false");
+  const q = encodeURIComponent("name='DLT_APP_CONFIG.txt' and trashed=false");
   const url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime)&q=" + q;
   const r = await driveApi(url);
   const data = await r.json();
@@ -1504,15 +1542,13 @@ async function driveEnsureConfig(){
     driveConfig.configFileId = f.id;
     // download content
     const d = await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
-    const txt = await d.text();
-    try{
-      const cfg = JSON.parse(txt);
-      driveConfig = Object.assign(driveConfig, cfg, { configFileId: f.id });
-    }catch(e){}
+    const txt = await _driveReadText(d);
+    const cfg = _parseConfigTxt(txt);
+    driveConfig = Object.assign(driveConfig, cfg, { configFileId: f.id });
   } else {
     // create default config file
-    const cfgBlob = new Blob([JSON.stringify({ folderId: null, folderName: "DLT_JOBS" }, null, 2)], {type:"application/json"});
-    const meta = { name:"DLT_APP_CONFIG.json", parents:["appDataFolder"] };
+    const cfgBlob = new Blob([_stringifyConfigTxt({ folderId: "", folderName: "DLT_JOBS" })], {type:"text/plain; charset=windows-874"});
+    const meta = { name:"DLT_APP_CONFIG.txt", parents:["appDataFolder"] };
     const form = new FormData();
     form.append("metadata", new Blob([JSON.stringify(meta)], {type:"application/json"}));
     form.append("file", cfgBlob);
@@ -1532,7 +1568,7 @@ async function driveUpdateConfig(){
   const cfgBlob = new Blob([JSON.stringify({ folderId: driveConfig.folderId, folderName: driveConfig.folderName }, null, 2)], {type:"application/json"});
   await driveApi("https://www.googleapis.com/upload/drive/v3/files/" + driveConfig.configFileId + "?uploadType=media", {
     method: "PATCH",
-    headers: Object.assign({"Content-Type":"application/json"}, driveHeaders()),
+    headers: Object.assign({"Content-Type":"text/plain; charset=windows-874"}, driveHeaders()),
     body: await cfgBlob.text()
   });
 }
@@ -1755,7 +1791,7 @@ async function driveRefreshList(){
 async function driveLoadTxt(txtFileId, key){
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + txtFileId + "?alt=media");
-    const txt = await r.text();
+    const txt = await _driveReadText(r);
     // ใช้แค่บรรทัดแรก (1 งาน = 1 บรรทัด). ถ้ามีหลายบรรทัดจะนำเข้าบรรทัดแรกก่อน
     const line = (txt.split(/\r?\n/).find(l=>l.length>0) || "");
     if (!line){
