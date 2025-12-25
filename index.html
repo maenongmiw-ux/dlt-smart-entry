@@ -1436,51 +1436,33 @@ async function driveApi(url, opts={}){
 }
 
 // ---------- Config in appDataFolder ----------
-async function driveEnsureConfig(){
-  // 1) Find config file in appDataFolder
-  const q = encodeURIComponent("name='DLT_APP_CONFIG.json' and trashed=false");
-  const url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime)&q=" + q;
-  const r = await driveApi(url);
-  const data = await r.json();
-  if (data.files && data.files.length){
-    const f = data.files[0];
-    driveConfig.configFileId = f.id;
-    // download content
-    const d = await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
-    const txt = await d.text();
-    try{
-      const cfg = JSON.parse(txt);
-      driveConfig = Object.assign(driveConfig, cfg, { configFileId: f.id });
-    }catch(e){}
-  } else {
-    // create default config file
-    const cfgBlob = new Blob([JSON.stringify({ folderId: null, folderName: "DLT_JOBS" }, null, 2)], {type:"application/json"});
-    const meta = { name:"DLT_APP_CONFIG.json", parents:["appDataFolder"] };
-    const form = new FormData();
-    form.append("metadata", new Blob([JSON.stringify(meta)], {type:"application/json"}));
-    form.append("file", cfgBlob);
-    const up = await driveApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", { method:"POST", body: form });
-    const upj = await up.json();
-    driveConfig.configFileId = upj.id;
+async async function driveEnsureConfig(){
+  // ไม่ใช้ appDataFolder / ไม่สร้างไฟล์ JSON ใดๆ — ใช้ localStorage เป็นหลัก
+  driveConfig = driveConfig || {};
+  if (driveConfig.folderId) return driveConfig;
+
+  const saved = localStorage.getItem("DLT_DRIVE_FOLDER_ID");
+  if (saved){
+    driveConfig.folderId = saved;
+    return driveConfig;
   }
-  await driveEnsureJobsFolder();
-  // update UI
-  const el = document.getElementById("driveFolderId");
-  if (el) el.textContent = driveConfig.folderId || "-";
+
+  // หา/สร้างโฟลเดอร์งานใน My Drive
+  const folderId = await driveEnsureJobsFolder();
+  driveConfig.folderId = folderId;
+  localStorage.setItem("DLT_DRIVE_FOLDER_ID", folderId);
   return driveConfig;
 }
 
-async function driveUpdateConfig(){
-  if (!driveConfig.configFileId) return;
-  const cfgBlob = new Blob([JSON.stringify({ folderId: driveConfig.folderId, folderName: driveConfig.folderName }, null, 2)], {type:"application/json"});
-  await driveApi("https://www.googleapis.com/upload/drive/v3/files/" + driveConfig.configFileId + "?uploadType=media", {
-    method: "PATCH",
-    headers: Object.assign({"Content-Type":"application/json"}, driveHeaders()),
-    body: await cfgBlob.text()
-  });
+async async function driveUpdateConfig(partial){
+  driveConfig = Object.assign(driveConfig || {}, partial || {});
+  if (driveConfig.folderId){
+    localStorage.setItem("DLT_DRIVE_FOLDER_ID", driveConfig.folderId);
+  }
+  return driveConfig;
 }
 
-async function driveEnsureJobsFolder(){
+async async function driveEnsureJobsFolder(){
   if (driveConfig.folderId){
     // verify exists
     try{
@@ -1511,7 +1493,7 @@ async function driveEnsureJobsFolder(){
   await driveUpdateConfig();
 }
 
-async function drivePickOrCreateFolder(){
+async async function drivePickOrCreateFolder(){
   // browser-only: เราไม่ใช้ picker (ต้องมี API key) เลยทำแบบ “สร้าง/ใช้โฟลเดอร์มาตรฐาน” ให้เลย
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); return; }
   const name = prompt("ตั้งชื่อโฟลเดอร์ใน Google Drive (ว่าง = ใช้ DLT_JOBS):", driveConfig.folderName || "DLT_JOBS");
@@ -1574,48 +1556,50 @@ function _encodeTIS620(str){
 }
 
 function _buildTxt(){
-  // ใช้ logic เดิมจาก exportToANSI แต่คืน string + bytes
-  // Build each record line with fixed width columns
-  if (!records || !records.length){
-    // อย่างน้อยสร้าง 1 record จาก tempState
-    records = [Object.assign({}, tempState)];
-  }
-  // Ensure all records filled for missing fields as per column widths
+  // คืนค่า {txt, bytes} สำหรับ TXT fixed-length (CRLF) และ bytes แบบ ANSI (Windows-874/TIS-620 mapping)
+  const recs = (Array.isArray(records) && records.length) ? records : [Object.assign({}, tempState||{})];
   const maxPos = 404;
-  const lines = records.map(rec=>{
-    let lineArr = Array(maxPos).fill(' ');
+  const lines = recs.map(rec=>{
+    const lineArr = Array(maxPos).fill(' ');
     for (let i=0;i<columns.length;i++){
       const col = columns[i];
-      const start = col.pos - 1;
-      const width = col.width;
-      let val = (rec && rec[i] != null) ? String(rec[i]) : "";
-      // If user left blank, fill with 0 for numeric-only, else spaces
+      const start = (col.pos||0) - 1;
+      const width = col.width || 0;
+      if (start < 0 || width <= 0) continue;
+
+      // รองรับทั้ง rec เป็น object (key) และ array (index)
+      let raw = "";
+      if (rec && typeof rec === 'object'){
+        if (col.key && rec[col.key] != null) raw = String(rec[col.key]);
+        else if (rec[i] != null) raw = String(rec[i]);
+      }
+      raw = raw == null ? "" : String(raw);
+
+      // ถ้าว่าง = pad 0 เต็มจำนวนตามเงื่อนไข
+      let val = raw.trim();
       if (!val){
-        if (col.type === 'number') val = "0".repeat(width);
-        else val = " ".repeat(width);
+        val = '0'.repeat(width);
+      }else{
+        // ทำตัวพิมพ์ใหญ่เฉพาะ A-Z
+        val = val.toUpperCase();
+        if (val.length > width) val = val.slice(0, width);
+        // ค่าที่มีจริงให้ pad ขวาด้วย space ตาม fixed-length
+        val = val.padEnd(width, ' ');
       }
-      // For sequence field (index 2), ensure pad 6 with leading zeros
-      if (i === 2){
-        const n = String(val).replace(/\D/g,'').slice(-6);
-        val = n.padStart(6,'0');
-      }
-      // Uppercase English
-      val = val.toUpperCase();
-      if (val.length > width) val = val.slice(0,width);
-      // pad right with spaces to width (spec says space until next field)
-      val = val.padEnd(width,' ');
+
       for (let k=0;k<width;k++){
         lineArr[start+k] = val[k] || ' ';
       }
     }
     return lineArr.join('');
   });
+
   const txt = lines.join("\r\n");
   const bytes = _encodeTIS620(txt);
   return {txt, bytes};
 }
 
-async function driveSaveJob(){
+async async async function driveSaveJob(){
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); driveLogin(); return; }
   const jobKey = _getJobKey();
   if (!jobKey){
@@ -1627,20 +1611,14 @@ async function driveSaveJob(){
 
   // Save TXT (ANSI/TIS-620)
   const txtName = jobKey + ".txt";
-  const jsonName = jobKey + ".dltjob.json";
-
-  // Save JSON for perfect reload
-  const payload = { version: 1, savedAt: new Date().toISOString(), columns, records, tempState, activeTab };
-  const jsonBlob = new Blob([JSON.stringify(payload)], {type:"application/json"});
 
   await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain"}));
-  await driveUpsertFileInFolder(driveConfig.folderId, jsonName, jsonBlob);
 
   _toast("บันทึกขึ้น Drive แล้ว ✅ ("+jobKey+")", "success");
   await driveRefreshList();
 }
 
-async function driveUpsertFileInFolder(folderId, filename, blob){
+async async function driveUpsertFileInFolder(folderId, filename, blob){
   // find existing
   const q = encodeURIComponent(`name='${filename}' and '${folderId}' in parents and trashed=false`);
   const r = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=" + q);
@@ -1664,20 +1642,20 @@ async function driveUpsertFileInFolder(folderId, filename, blob){
   }
 }
 
-async function driveRefreshList(){
+async async function driveRefreshList(){
   if (!driveAccessToken) return;
   await driveEnsureConfig();
   const folderId = driveConfig.folderId;
-  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '.dltjob.json' or name contains '.txt')`);
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '' or name contains '.txt')`);
   const r = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime,size,mimeType)&orderBy=modifiedTime desc&q=" + q);
   const data = await r.json();
-  // รวมทั้งไฟล์ .dltjob.json และไฟล์ .txt ที่โยนเข้ามาเอง
+  // รวมทั้งไฟล์  และไฟล์ .txt ที่โยนเข้ามาเอง
   const files = (data.files||[]);
   const jsonMap = new Map();
   const txtMap  = new Map();
 
   for (const f of files){
-    if (f.name.endsWith(".dltjob.json")){
+    if (f.name.endsWith("")){
       const key = f.name.replace(/\.dltjob\.json$/,'');
       jsonMap.set(key, { key, jsonId: f.id, modifiedTime: f.modifiedTime });
     } else if (f.name.toLowerCase().endsWith(".txt")){
@@ -1750,7 +1728,7 @@ async function driveRefreshList(){
 }
 
 
-async function driveLoadTxt(txtFileId, key){
+async async function driveLoadTxt(txtFileId, key){
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + txtFileId + "?alt=media");
     const txt = await r.text();
@@ -1788,7 +1766,7 @@ async function driveLoadTxt(txtFileId, key){
   }
 }
 
-async function driveDownloadTxt(txtFileId, key){
+async async function driveDownloadTxt(txtFileId, key){
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + txtFileId + "?alt=media");
     const blob = await r.blob();
@@ -1805,7 +1783,7 @@ async function driveDownloadTxt(txtFileId, key){
   }
 }
 
-async function driveLoadJob(jsonFileId){
+async async function driveLoadJob(jsonFileId){
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + jsonFileId + "?alt=media");
     const txt = await r.text();
@@ -1826,7 +1804,7 @@ async function driveLoadJob(jsonFileId){
   }
 }
 
-async function driveExportTxtFromJob(jobKey){
+async async function driveExportTxtFromJob(jobKey){
   // ดาวน์โหลดไฟล์ TXT ที่ชื่อ jobKey.txt ออกมาในเครื่อง (ยังเป็น ANSI)
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); return; }
   await driveEnsureConfig();
@@ -1848,9 +1826,9 @@ async function driveExportTxtFromJob(jobKey){
   URL.revokeObjectURL(url);
 }
 
-async function driveDeleteAllJobs(){
+async async function driveDeleteAllJobs(){
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); return; }
-  if (!confirm("ลบไฟล์งานทั้งหมดในโฟลเดอร์นี้? (ทั้ง .txt และ .dltjob.json)")) return;
+  if (!confirm("ลบไฟล์งานทั้งหมดในโฟลเดอร์นี้? (ทั้ง .txt และ )")) return;
   await driveEnsureConfig();
   const folderId = driveConfig.folderId;
   const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
@@ -1865,17 +1843,16 @@ async function driveDeleteAllJobs(){
 
 // ---------- Autosave ----------
 let _autosaveTimer = null;
-function driveAutoSaveTick(){
+async function driveAutoSaveTick(){
   // autosave เฉพาะตอนล็อกอิน + มีเลขงาน
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
   if (!jobKey) return;
-  // autosave JSON อย่างเดียว (เบา) ทุก 60 วินาที
+  // autosave TXT เท่านั้น ทุก 60 วินาที
   driveEnsureConfig().then(async ()=>{
-    const jsonName = jobKey + ".dltjob.autosave.json";
-    const payload = { version: 1, autosave: true, savedAt: new Date().toISOString(), columns, records, tempState, activeTab };
-    const jsonBlob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-    await driveUpsertFileInFolder(driveConfig.folderId, jsonName, jsonBlob);
+    const {bytes} = _buildTxt();
+    const txtName = jobKey + ".txt";
+    await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain"}));
     const t = document.getElementById("driveStatusText");
     if (t) t.textContent = "เชื่อมแล้ว • autosave ล่าสุด " + new Date().toLocaleTimeString();
   }).catch(()=>{});
