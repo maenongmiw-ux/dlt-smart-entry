@@ -934,65 +934,15 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     </div>
 
     <script>
-        // --- Data Loading Helper (TEXT ONLY) ---
-    const _serializeList = (arr=[]) => (arr||[]).map(o=>{
-        const val = (o && o.val != null) ? String(o.val) : "";
-        const label = (o && o.label != null) ? String(o.label) : "";
-        // one item per line: val<TAB>label
-        return (val.replace(/\r|\n/g,' ') + "\t" + label.replace(/\r|\n/g,' '));
-    }).join("\n");
-
-    const _deserializeList = (raw) => {
-        if (!raw) return null;
-        const s = String(raw).trim();
-        if (!s) return null;
-
-        // Backward-compat: if old JSON is still here, parse once then rewrite as TEXT
-        if (s[0] === "[" || s[0] === "{"){
+        // --- Data Loading Helper ---
+        const load = (k, d, minLen=0) => {
             try {
-                const v = JSON.parse(s);
-                if (Array.isArray(v)) return v;
-            } catch {}
-        }
-
-        const lines = s.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-        const out = [];
-        for (const line of lines){
-            const parts = line.split("\t");
-            if (parts.length >= 2){
-                out.push({ val: parts[0].trim(), label: parts.slice(1).join("\t").trim() });
-            } else {
-                // fallback: try "LABEL : CODE" or "CODE : LABEL"
-                const m = line.match(/^(.+?)\s*:\s*(.+)$/);
-                if (m){
-                    const a = m[1].trim(), b = m[2].trim();
-                    // heuristic: if right side looks like code, map label:code
-                    if (/^[A-Z0-9]{1,6}$/.test(b)) out.push({ val: b, label: a });
-                    else if (/^[A-Z0-9]{1,6}$/.test(a)) out.push({ val: a, label: b });
-                    else out.push({ val: a, label: b });
-                }
-            }
-        }
-        return out.length ? out : null;
-    };
-
-    const load = (k, d, minLen=0) => {
-        try {
-            const raw = localStorage.getItem(k);
-            const v = _deserializeList(raw);
-            if (!v) return d;
-            if (Array.isArray(v) && v.length < minLen) return d;
-            // if legacy JSON was found, rewrite as TEXT
-            if (raw && String(raw).trim().startsWith("[")) {
-                try { localStorage.setItem(k, _serializeList(v)); } catch {}
-            }
-            return v;
-        } catch { return d; }
-    };
-
-    const saveList = (k, arr) => {
-        try { localStorage.setItem(k, _serializeList(arr)); } catch {}
-    };
+                const v = JSON.parse(localStorage.getItem(k));
+                if (!v) return d;
+                if (Array.isArray(v) && v.length < minLen) return d;
+                return v;
+            } catch { return d; }
+        };
 
         // --- 1. App Data (Global State) ---
         let appData = {
@@ -1012,7 +962,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         // Keep "ยี่ห้อรถ" เรียงตามตัวอักษร (จากชื่อยี่ห้อ)
         appData.brands = sortByLabel(appData.brands);
         // (optional) เก็บกลับไว้ให้เรียงเหมือนกันทุกครั้งที่เปิด
-        try { saveList('dlt_brands', appData.brands); } catch {}
+        try { localStorage.setItem('dlt_brands', JSON.stringify(appData.brands)); } catch {}
 
 
         // --- Static Lists ---
@@ -1235,7 +1185,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
              // เรียงให้หาง่าย: ยี่ห้อรถเรียงตามชื่อยี่ห้อ, ที่เหลือเรียงตามรหัส
              const sorted = (currentModalTarget === 'brands') ? sortByLabel(appData[currentModalTarget]) : sortByVal(appData[currentModalTarget]);
              appData[currentModalTarget] = sorted;
-             saveList('dlt_' + currentModalTarget, appData[currentModalTarget]);
+             localStorage.setItem('dlt_' + currentModalTarget, JSON.stringify(appData[currentModalTarget]));
              
              render();
              closeModal();
@@ -1267,7 +1217,6 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                             <div class="text-sm text-slate-700 font-mono font-bold">${r[11] || '-'}</div>
                          </div>
                     </div>
-                    <button onclick="useRec(${i})" class="px-3 py-2 rounded-xl bg-pink-500 text-white font-extrabold hover:bg-pink-600 transition">แก้ไข</button>
                     <button onclick="del(${i})" class="text-slate-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"><span class="material-icons-round">delete</span></button>
                 </div>`).join('');
              document.getElementById('previewCount').innerText = `Total: ${records.length}`;
@@ -1278,23 +1227,6 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             renderList();
             document.getElementById('badgeCount').innerText = records.length;
         }
-
-        function useRec(i){
-            try{
-                if (!records || !records.length) return;
-                if (i < 0 || i >= records.length) return;
-                tempState = records[i].slice();
-                // หลังเลือกให้กลับไปแท็บ 1 เพื่อแก้ไข และรีเฟรชทันที
-                try{ switchTab(1); }catch(_e){ currentTab = 1; render(); }
-                // ปิด preview modal
-                const modal = document.getElementById('previewModal');
-                if (modal) modal.classList.add('hidden');
-                _toast(`เปิดลำดับที่ ${i+1} เพื่อแก้ไขแล้ว ✅`, "success");
-            }catch(e){
-                console.error(e);
-            }
-        }
-
 
         function clearAllFields() {
              if(!confirm("ล้างข้อมูลหน้าจอทั้งหมด?")) return;
@@ -1311,9 +1243,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         }
 
         function formatFixedWidth(text, length, padType, align) {
-             let str = (text === undefined || text === null) ? "" : String(text);
-             // treat whitespace-only as empty
-             str = str.trim();
+             let str = (text === 0 ? '0' : String((text ?? '')));
              if (str === "") {
                  str = padType === '0' ? "0".repeat(length) : " ".repeat(length);
              } else {
@@ -1326,40 +1256,35 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         }
 
         function exportToANSI() {
-    if (!records || records.length === 0) return alert("ไม่มีข้อมูล");
-
-    // ใช้ตัวเดียวกับ Drive (source of truth = TXT)
-    let built;
-    if (typeof _buildTxt === "function") built = _buildTxt();
-    else {
-        // fallback: old logic
-        let content = "";
-        records.forEach(row => {
-            let line = "";
-            row.forEach((val, idx) => {
-                const c = columns[idx];
-                line += formatFixedWidth(val, c.l, c.p, c.a);
+            if(records.length === 0) return alert("ไม่มีข้อมูล");
+            
+            let content = "";
+            records.forEach(row => {
+                let line = "";
+                row.forEach((val, idx) => {
+                    const c = columns[idx];
+                    line += formatFixedWidth(val, c.l, c.p, c.a);
+                });
+                content += line + "\r\n";
             });
-            content += line + "\r\n";
-        });
-        built = { txt: content, bytes: _encodeTIS620 ? _encodeTIS620(content) : new TextEncoder().encode(content) };
-    }
+            
+            // Mock Encoding
+            const buffer = new Uint8Array(content.length);
+            for (let i = 0; i < content.length; i++) {
+                let code = content.charCodeAt(i);
+                buffer[i] = (code > 128) ? code - 3424 : code;
+            }
+            
+            const blob = new Blob([buffer], { type: 'text/plain; charset=windows-874' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (_getJobKey() ? (_getJobKey()+'.txt') : `DLT_${new Date().toISOString().slice(0,10)}.txt`);
+            a.click();
+            URL.revokeObjectURL(url);
+        }
 
-    const blob = new Blob([built.bytes], { type: "text/plain; charset=windows-874" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-
-    // ชื่อไฟล์ต้องนิ่งตาม rule เดิม: ใช้เลขที่บัญชีบริษัท (ข้อ 2)
-    const jobKey = (typeof _getJobKey === "function") ? _getJobKey() : ((tempState && tempState[1]) ? String(tempState[1]).trim() : "");
-    const safe = (jobKey || `DLT_${new Date().toISOString().slice(0,10)}`).replace(/[\\/:*?"<>|]/g, "_");
-    a.download = `${safe}.txt`;
-
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-function downloadApp() {
+        function downloadApp() {
             const htmlContent = document.documentElement.outerHTML;
             const blob = new Blob([htmlContent], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -1456,38 +1381,6 @@ function _toast(msg, type="info"){
   try{ showToast(msg, type); }catch(e){ alert(msg); }
 }
 
-
-function ensureGsiLoaded(cb){
-  try{
-    if (window.google && google.accounts && google.accounts.oauth2){ cb && cb(); return; }
-  }catch(e){}
-  // already injecting?
-  if (window.__gsiLoading){
-    window.__gsiCallbacks = window.__gsiCallbacks || [];
-    window.__gsiCallbacks.push(cb);
-    return;
-  }
-  window.__gsiLoading = true;
-  window.__gsiCallbacks = window.__gsiCallbacks || [];
-  if (cb) window.__gsiCallbacks.push(cb);
-
-  const s = document.createElement("script");
-  s.src = "https://accounts.google.com/gsi/client";
-  s.async = true;
-  s.defer = true;
-  s.onload = ()=>{
-    window.__gsiLoading = false;
-    const cbs = window.__gsiCallbacks || [];
-    window.__gsiCallbacks = [];
-    cbs.forEach(fn=>{ try{ fn && fn(); }catch(e){} });
-  };
-  s.onerror = ()=>{
-    window.__gsiLoading = false;
-    _toast("โหลด Google Login ไม่สำเร็จ (เช็คเน็ต/บล็อคสคริปต์)", "error");
-  };
-  document.head.appendChild(s);
-}
-
 function driveInit(){
   if (driveTokenClient) return;
   if (!window.google || !google.accounts || !google.accounts.oauth2){
@@ -1512,15 +1405,9 @@ function driveInit(){
 }
 
 function driveLogin(){
-  // Make the button always work even if GSI hasn't loaded yet
-  ensureGsiLoaded(()=>{
-    driveInit();
-    if (!driveTokenClient){
-      _toast("ยังเชื่อม Google ไม่ได้ (ลองรีเฟรช/เช็ค Client ID)", "warning");
-      return;
-    }
-    driveTokenClient.requestAccessToken({ prompt: "consent" });
-  });
+  driveInit();
+  if (!driveTokenClient) return;
+  driveTokenClient.requestAccessToken({ prompt: "consent" });
 }
 
 function driveLogout(){
@@ -1548,84 +1435,68 @@ async function driveApi(url, opts={}){
   return res;
 }
 
-
-function _decodeArrayBufferToText(ab){
-  // TXT = ANSI (Windows-874). ใช้ decoder นี้ทั้ง import/export ให้ความยาว fixed-length ไม่เพี้ยน
-  try{
-    return new TextDecoder("windows-874").decode(new Uint8Array(ab));
-  }catch(e){
-    try{ return new TextDecoder("tis-620").decode(new Uint8Array(ab)); }catch(e2){}
-  }
-  // fallback (อาจทำให้ภาษาไทยเพี้ยน แต่กันแอปล่ม)
-  try{ return new TextDecoder("utf-8").decode(new Uint8Array(ab)); }catch(e3){}
-  return "";
-}
-async function _driveReadText(res){
-  const ab = await res.arrayBuffer();
-  return _decodeArrayBufferToText(ab);
-}
-
-// TEXT config parser (key=value)
-function _parseConfigTxt(txt){
-  const out = {};
-  (txt||"").split(/\r?\n/).forEach(line=>{
-    line = String(line||"").trim();
-    if(!line || line.startsWith("#")) return;
-    const i = line.indexOf("=");
-    if(i<0) return;
-    const k = line.slice(0,i).trim();
-    const v = line.slice(i+1).trim();
-    out[k] = v;
-  });
-  return out;
-}
-function _stringifyConfigTxt(obj){
-  const lines = [];
-  if(obj.folderId) lines.push("folderId="+obj.folderId);
-  if(obj.folderName) lines.push("folderName="+obj.folderName);
-  return lines.join("\n") + "\n";
-}
-
 // ---------- Config in appDataFolder ----------
 async function driveEnsureConfig(){
-  // 1) Find config file in appDataFolder
-  const q = encodeURIComponent("name='DLT_APP_CONFIG.txt' and trashed=false");
+  // TXT-only config stored in appDataFolder as DLT_APP_CONFIG.txt
+  const CFG_NAME = "DLT_APP_CONFIG.txt";
+  const q = encodeURIComponent(`name='${CFG_NAME}' and trashed=false`);
   const url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime)&q=" + q;
   const r = await driveApi(url);
   const data = await r.json();
+
+  const parseCfg = (txt)=>{
+    const cfg = {};
+    (txt||"").split(/\r?\n/).forEach(line=>{
+      const s=line.trim();
+      if(!s || s.startsWith("#")) return;
+      const i=s.indexOf("=");
+      if(i<0) return;
+      const k=s.slice(0,i).trim();
+      const v=s.slice(i+1).trim();
+      cfg[k]=v;
+    });
+    return cfg;
+  };
+
   if (data.files && data.files.length){
     const f = data.files[0];
     driveConfig.configFileId = f.id;
-    // download content
     const d = await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
-    const txt = await _driveReadText(d);
-    const cfg = _parseConfigTxt(txt);
-    driveConfig = Object.assign(driveConfig, cfg, { configFileId: f.id });
+    const buf = await d.arrayBuffer();
+    let txt = "";
+    try{ txt = new TextDecoder("utf-8").decode(buf); }catch(e){ txt = ""; }
+    const cfg = parseCfg(txt);
+    driveConfig.folderId = cfg.folderId || driveConfig.folderId || null;
+    driveConfig.folderName = cfg.folderName || driveConfig.folderName || "DLT_JOBS";
   } else {
-    // create default config file
-    const cfgBlob = new Blob([_stringifyConfigTxt({ folderId: "", folderName: "DLT_JOBS" })], {type:"text/plain; charset=windows-874"});
-    const meta = { name:"DLT_APP_CONFIG.txt", parents:["appDataFolder"] };
+    // create default config file (TXT)
+    const content = "folderId=\nfolderName=DLT_JOBS\n";
+    const meta = { name: CFG_NAME, parents: ["appDataFolder"] };
     const form = new FormData();
     form.append("metadata", new Blob([JSON.stringify(meta)], {type:"application/json"}));
-    form.append("file", cfgBlob);
-    const up = await driveApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", { method:"POST", body: form });
-    const upj = await up.json();
-    driveConfig.configFileId = upj.id;
+    form.append("file", new Blob([content], {type:"text/plain"}));
+    const up = await driveApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+      method: "POST",
+      headers: driveHeaders(),
+      body: form
+    });
+    const res = await up.json();
+    driveConfig.configFileId = res.id;
+    driveConfig.folderId = null;
+    driveConfig.folderName = "DLT_JOBS";
   }
+
+  // ensure jobs folder exists
   await driveEnsureJobsFolder();
-  // update UI
-  const el = document.getElementById("driveFolderId");
-  if (el) el.textContent = driveConfig.folderId || "-";
-  return driveConfig;
 }
 
 async function driveUpdateConfig(){
   if (!driveConfig.configFileId) return;
-  const cfgBlob = new Blob([JSON.stringify({ folderId: driveConfig.folderId, folderName: driveConfig.folderName }, null, 2)], {type:"application/json"});
+  const content = `folderId=${driveConfig.folderId||""}\nfolderName=${driveConfig.folderName||"DLT_JOBS"}\n`;
   await driveApi("https://www.googleapis.com/upload/drive/v3/files/" + driveConfig.configFileId + "?uploadType=media", {
     method: "PATCH",
-    headers: Object.assign({"Content-Type":"text/plain; charset=windows-874"}, driveHeaders()),
-    body: await cfgBlob.text()
+    headers: Object.assign({"Content-Type":"text/plain; charset=utf-8"}, driveHeaders()),
+    body: content
   });
 }
 
@@ -1723,29 +1594,42 @@ function _encodeTIS620(str){
 }
 
 function _buildTxt(){
-  // Source of truth = TXT fixed-length (ตาม columns: l/p/a)
+  // ใช้ logic เดิมจาก exportToANSI แต่คืน string + bytes
+  // Build each record line with fixed width columns
   if (!records || !records.length){
-    // สร้าง 1 record จาก tempState ถ้ายังไม่มีรายการ
-    if (Array.isArray(tempState)) records = [tempState.slice()];
-    else if (tempState && typeof tempState === "object"){
-      const row = [];
-      for (let i=0;i<columns.length;i++) row[i] = tempState[i] ?? "";
-      records = [row];
-    } else {
-      records = [Array(columns.length).fill("")];
-    }
+    // อย่างน้อยสร้าง 1 record จาก tempState
+    records = [Object.assign({}, tempState)];
   }
-
-  const lines = records.map(row=>{
-    let line = "";
-    for (let idx=0; idx<columns.length; idx++){
-      const c = columns[idx];
-      const val = row ? row[idx] : "";
-      line += formatFixedWidth(val, c.l, c.p, c.a);
+  // Ensure all records filled for missing fields as per column widths
+  const maxPos = 404;
+  const lines = records.map(rec=>{
+    let lineArr = Array(maxPos).fill(' ');
+    for (let i=0;i<columns.length;i++){
+      const col = columns[i];
+      const start = col.pos - 1;
+      const width = col.width;
+      let val = (rec && rec[i] != null) ? String(rec[i]) : "";
+      // If user left blank, fill with 0 for numeric-only, else spaces
+      if (!val){
+        if (col.type === 'number') val = "0".repeat(width);
+        else val = " ".repeat(width);
+      }
+      // For sequence field (index 2), ensure pad 6 with leading zeros
+      if (i === 2){
+        const n = String(val).replace(/\D/g,'').slice(-6);
+        val = n.padStart(6,'0');
+      }
+      // Uppercase English
+      val = val.toUpperCase();
+      if (val.length > width) val = val.slice(0,width);
+      // pad right with spaces to width (spec says space until next field)
+      val = val.padEnd(width,' ');
+      for (let k=0;k<width;k++){
+        lineArr[start+k] = val[k] || ' ';
+      }
     }
-    return line;
+    return lineArr.join('');
   });
-
   const txt = lines.join("\r\n");
   const bytes = _encodeTIS620(txt);
   return {txt, bytes};
@@ -1759,14 +1643,11 @@ async function driveSaveJob(){
     return;
   }
   await driveEnsureConfig();
-
   const {bytes} = _buildTxt();
+
   const txtName = jobKey + ".txt";
-
-  // TEXT ONLY: ไม่มีไฟล์ .json และไม่สร้าง "ไฟล์ผี"
-  await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain; charset=windows-874"}));
-
-  _toast("บันทึกขึ้น Drive แล้ว ✅ ("+jobKey+")", "success");
+  await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain"}));
+  _toast("บันทึกขึ้น Drive แล้ว ✅ (" + txtName + ")", "success");
   await driveRefreshList();
 }
 
@@ -1798,123 +1679,91 @@ async function driveRefreshList(){
   if (!driveAccessToken) return;
   await driveEnsureConfig();
   const folderId = driveConfig.folderId;
-
-  // TEXT ONLY: list only .txt jobs
   const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and name contains '.txt'`);
-  const r = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime,size,mimeType)&orderBy=modifiedTime desc&q=" + q);
+  const r = await driveApi("https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id,name,modifiedTime,size,mimeType)&orderBy=modifiedTime desc&q=" + q);
   const data = await r.json();
   const files = (data.files||[]).filter(f=>f.name && f.name.toLowerCase().endsWith(".txt"));
 
-  const jobs = files.map(f=>{
-    const key = f.name.replace(/\.txt$/i,'');
-    return { key, txtId: f.id, modifiedTime: f.modifiedTime, size: f.size };
-  });
-
-  const list = document.getElementById("driveList");
-  const count = document.getElementById("driveCount");
-  if (count) count.textContent = String(jobs.length);
+  const list = document.getElementById("driveJobsList");
   if (!list) return;
-
-  if (!jobs.length){
-    list.innerHTML = `<div class="col-span-full text-center text-slate-400 py-10">
-      <div class="text-5xl mb-2">🗂️</div>
-      <div class="font-bold">ยังไม่มีไฟล์งานในโฟลเดอร์นี้</div>
-      <div class="text-sm mt-1">กด “บันทึกขึ้น Drive” เพื่อสร้างไฟล์ .txt</div>
-    </div>`;
+  list.innerHTML = "";
+  if (!files.length){
+    list.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีไฟล์งาน .txt ในโฟลเดอร์</div>';
     return;
   }
 
-  list.innerHTML = jobs.map(j=>`
-    <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-start justify-between gap-4">
-      <div class="min-w-0">
-        <div class="font-extrabold text-slate-900 truncate">${j.key}</div>
-        <div class="text-[11px] text-slate-500 font-bold mt-1">แก้ล่าสุด: ${j.modifiedTime ? new Date(j.modifiedTime).toLocaleString() : "-"}</div>
-        <div class="text-[10px] mt-1 font-bold text-slate-400">${j.size ? (Number(j.size)/1024).toFixed(1) + " KB" : ""}</div>
-      </div>
-      <div class="flex gap-2">
-        <button class="px-3 py-2 rounded-xl bg-slate-900 text-white font-extrabold hover:bg-slate-800" onclick="driveLoadTxt('${j.txtId}', '${j.key.replace(/'/g,"&#39;")}')">
-          <span class="material-icons-round align-middle text-base mr-1">upload_file</span> นำเข้า
-        </button>
-        <button class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-extrabold hover:bg-slate-50" onclick="driveDownloadTxt('${j.txtId}', '${j.key.replace(/'/g,"&#39;")}')">
-          <span class="material-icons-round align-middle text-base mr-1">download</span> TXT
-        </button>
-      </div>
-    </div>
-  `).join("");
+  for (const f of files){
+    const key = f.name.replace(/\.txt$/i,'');
+    const row = document.createElement("div");
+    row.className = "flex items-center justify-between gap-2 py-2 border-b border-slate-200";
+    const left = document.createElement("div");
+    left.className = "min-w-0";
+    left.innerHTML = `<div class="font-medium text-slate-800 truncate">${key}</div>
+                      <div class="text-xs text-slate-500">${new Date(f.modifiedTime).toLocaleString()}</div>`;
+    const right = document.createElement("div");
+    right.className = "flex items-center gap-2 shrink-0";
+    const btnImport = document.createElement("button");
+    btnImport.className = "px-3 py-1 rounded-xl bg-slate-900 text-white text-sm hover:bg-slate-800";
+    btnImport.textContent = "นำเข้า";
+    btnImport.onclick = ()=>driveLoadTxt(f.id, key);
+    const btnDl = document.createElement("button");
+    btnDl.className = "px-3 py-1 rounded-xl bg-slate-100 text-slate-800 text-sm hover:bg-slate-200";
+    btnDl.textContent = "ดาวน์โหลด";
+    btnDl.onclick = ()=>driveDownloadTxt(f.id, key);
+    right.appendChild(btnImport);
+    right.appendChild(btnDl);
+    row.appendChild(left);
+    row.appendChild(right);
+    list.appendChild(row);
+  }
 }
 
 
 async function driveLoadTxt(txtFileId, key){
-  // นำเข้า TXT (Windows-874/TIS-620) + รองรับหลายบรรทัด (หลายลำดับ)
-  let txt = "";
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + txtFileId + "?alt=media");
-    txt = await _driveReadText(r);
-  }catch(e){
-    console.error(e);
-    _toast("นำเข้า TXT ไม่สำเร็จ (เช็คสิทธิ์/เน็ต)", "error");
-    return;
-  }
-
-  const lines = (txt || "").split(/\r?\n/).filter(l => (l || "").length > 0);
-  if (!lines.length){
-    _toast("ไฟล์ว่าง หรืออ่านไม่สำเร็จ", "warning");
-    return;
-  }
-
-  const parseLine = (line)=>{
-    const row = [];
-    let cursor = 0;
-    for (let i=0;i<columns.length;i++){
-      const c = columns[i];
-      const w = c.l;
-      const raw = line.slice(cursor, cursor + w);
-      cursor += w;
-      // ตัด space ด้านขวาออก (ไม่ยุ่ง 0)
-      row[i] = (raw || "").replace(/\s+$/,'');
+    const buf = await r.arrayBuffer();
+    let txt = "";
+    try{
+      txt = new TextDecoder("windows-874").decode(buf);
+    }catch(e){
+      try{ txt = new TextDecoder("tis-620").decode(buf); }catch(e2){ txt = new TextDecoder("utf-8").decode(buf); }
     }
-    return row;
-  };
 
-  // Parse ทุกบรรทัดเป็น records (รองรับบัญชีเดียวหลายลำดับ)
-  try{
-    records = lines.map(parseLine);
-    tempState = records[0].slice();
+    const lines = (txt||"").split(/\r?\n/).filter(l=>l.length>0);
+    if (!lines.length){
+      _toast("ไฟล์ว่าง หรืออ่านไม่สำเร็จ", "warning");
+      return;
+    }
 
-    // ตั้งค่าข้อ 2 (เลขที่บัญชีบริษัท) ถ้าผู้ใช้ส่งชื่อไฟล์มา
-    if (key && !String(tempState[1] ?? "").trim()){
-      tempState[1] = key;
+    const parsed = [];
+    for (const line of lines){
+      const rec = {};
+      for (let i=0;i<columns.length;i++){
+        const col = columns[i];
+        const start = col.pos - 1;
+        const width = col.width;
+        rec[i] = (line.substring(start, start+width) || "").trim();
+      }
+      parsed.push(rec);
+    }
+
+    records = parsed;
+    // set jobKey into field 2 for first record if missing
+    if (records[0] && (!records[0][1] || records[0][1].trim()==="")){
       records[0][1] = key;
     }
 
-    // หลังนำเข้า: สลับแท็บด้วย switchTab เพื่อให้ UI รีเฟรชทันที
-    try{ switchTab(1); }catch(_e){ currentTab = 1; }
-    try{ updateNextSeqDisplay(); }catch(_e){}
-    try{ render(); }catch(_e){}
+    // UI refresh
+    try{ switchTab(1); }catch(e){ activeTab = 1; }
+    try{ renderForm(); }catch(e){}
+    try{ updateNextSeqDisplay(); }catch(e){}
 
     _toast(`นำเข้าไฟล์ TXT แล้ว ✅ (${records.length} รายการ)`, "success");
-    try{ closeDriveModal(); }catch(_e){}
+    try{ closeDriveModal(); }catch(e){}
   }catch(e){
     console.error(e);
-    _toast("นำเข้า TXT ไม่สำเร็จ (ไฟล์รูปแบบไม่ถูกต้อง)", "error");
-  }
-}
-// Apply to UI state
-    tempState = row.slice();
-    records = [row.slice()];
-    // ตั้งค่าข้อ 2 (เลขที่บัญชีบริษัท) ถ้าผู้ใช้ส่งชื่อไฟล์มา
-    if (key && !String(tempState[1]||"").trim()){
-      tempState[1] = key;
-      records[0][1] = key;
-    }
-    activeTab = 1;
-    renderForm();
-    updateNextSeqDisplay();
-    _toast("นำเข้าไฟล์ TXT แล้ว ✅ (แก้ไขได้เลย)", "success");
-    closeDriveModal();
-  }catch(e){
-    console.error(e);
-    _toast("นำเข้า TXT ไม่สำเร็จ (เช็คสิทธิ์/เน็ต)", "error");
+    _toast("นำเข้า TXT ไม่สำเร็จ (เช็คสิทธิ์/เน็ต/encoding)", "error");
   }
 }
 
@@ -1935,8 +1784,9 @@ async function driveDownloadTxt(txtFileId, key){
   }
 }
 
-async function driveLoadJob(){ _toast('ปิดการใช้งานไฟล์ JSON แล้ว (ใช้ TXT เท่านั้น)', 'warning'); }
-
+async function driveLoadJob(jsonFileId){
+  _toast("ระบบนี้ใช้ TXT เท่านั้น (ไม่รองรับไฟล์งานแบบ JSON)", "warning");
+}
 
 async function driveExportTxtFromJob(jobKey){
   // ดาวน์โหลดไฟล์ TXT ที่ชื่อ jobKey.txt ออกมาในเครื่อง (ยังเป็น ANSI)
@@ -1962,15 +1812,24 @@ async function driveExportTxtFromJob(jobKey){
 
 async function driveDeleteAllJobs(){
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); return; }
-  if (!confirm("ลบไฟล์งานทั้งหมดในโฟลเดอร์นี้? (เฉพาะไฟล์ .txt)")) return;
+  if (!confirm("ลบไฟล์งานทั้งหมดในโฟลเดอร์นี้? (เฉพาะ .txt)")) return;
   await driveEnsureConfig();
   const folderId = driveConfig.folderId;
-  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and name contains '.txt'`);
   const r = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=" + q);
   const data = await r.json();
   for (const f of (data.files||[])){
-    await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id, { method:"DELETE" });
+    await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id, { method:"DELETE", headers: driveHeaders() });
   }
+  // best-effort: delete any old json ghosts if they exist (not created by this version)
+  try{
+    const qj = encodeURIComponent(`'${folderId}' in parents and trashed=false and name contains '.dltjob.'`);
+    const rj = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=" + qj);
+    const dj = await rj.json();
+    for (const f of (dj.files||[])){
+      await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id, { method:"DELETE", headers: driveHeaders() });
+    }
+  }catch(e){}
   _toast("ลบหมดแล้ว ✅", "success");
   await driveRefreshList();
 }
@@ -1978,32 +1837,29 @@ async function driveDeleteAllJobs(){
 // ---------- Autosave ----------
 let _autosaveTimer = null;
 function driveAutoSaveTick(){
-  // autosave เฉพาะตอนล็อกอิน + มีเลขงาน
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
   if (!jobKey) return;
-
-  // TXT ONLY: autosave เขียนเป็น .txt (source of truth = TXT) ห้ามสร้าง JSON ใน Drive
   driveEnsureConfig().then(async ()=>{
-    const { bytes } = _buildTxt();
-    const txtName = jobKey + ".txt";
-    const txtBlob = new Blob([bytes], {type:"text/plain"});
-    await driveUpsertFileInFolder(driveConfig.folderId, txtName, txtBlob);
-
-    // best-effort: ลบผี .dltjob.autosave.json ถ้ายังมีค้างอยู่ (เพื่อความสะอาด)
     try{
-      const jsonName = jobKey + ".dltjob.autosave.json";
-      const q = encodeURIComponent(`'${driveConfig.folderId}' in parents and trashed=false and name='${jsonName}'`);
-      const rr = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=" + q);
-      const dd = await rr.json();
-      for (const f of (dd.files||[])){
-        try{ await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id, {method:"DELETE"}); }catch(_e){}
-      }
-    }catch(_e){}
-
-    const t = document.getElementById("driveStatusText");
-    if (t) t.textContent = "เชื่อมแล้ว • autosave ล่าสุด " + new Date().toLocaleTimeString();
-  }).catch(()=>{});
+      const {bytes} = _buildTxt();
+      const txtName = jobKey + ".txt";
+      await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain"}));
+      // best-effort delete json ghost
+      try{
+        const q = encodeURIComponent(`'${driveConfig.folderId}' in parents and trashed=false and name='${jobKey}.dltjob.autosave.json'`);
+        const rr = await driveApi("https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id,name)&q=" + q);
+        const dd = await rr.json();
+        if (dd.files && dd.files.length){
+          await driveApi("https://www.googleapis.com/drive/v3/files/" + dd.files[0].id, { method:"DELETE", headers: driveHeaders() });
+        }
+      }catch(_e){}
+      const t = document.getElementById("driveStatusText");
+      if (t) t.textContent = "เชื่อมแล้ว (auto-save TXT)";
+    }catch(e){
+      console.error(e);
+    }
+  });
 }
 
 function startDriveAutoSave(){
