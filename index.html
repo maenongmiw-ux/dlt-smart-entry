@@ -1267,6 +1267,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                             <div class="text-sm text-slate-700 font-mono font-bold">${r[11] || '-'}</div>
                          </div>
                     </div>
+                    <button onclick="useRec(${i})" class="px-3 py-2 rounded-xl bg-pink-500 text-white font-extrabold hover:bg-pink-600 transition">แก้ไข</button>
                     <button onclick="del(${i})" class="text-slate-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"><span class="material-icons-round">delete</span></button>
                 </div>`).join('');
              document.getElementById('previewCount').innerText = `Total: ${records.length}`;
@@ -1277,6 +1278,23 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             renderList();
             document.getElementById('badgeCount').innerText = records.length;
         }
+
+        function useRec(i){
+            try{
+                if (!records || !records.length) return;
+                if (i < 0 || i >= records.length) return;
+                tempState = records[i].slice();
+                // หลังเลือกให้กลับไปแท็บ 1 เพื่อแก้ไข และรีเฟรชทันที
+                try{ switchTab(1); }catch(_e){ currentTab = 1; render(); }
+                // ปิด preview modal
+                const modal = document.getElementById('previewModal');
+                if (modal) modal.classList.add('hidden');
+                _toast(`เปิดลำดับที่ ${i+1} เพื่อแก้ไขแล้ว ✅`, "success");
+            }catch(e){
+                console.error(e);
+            }
+        }
+
 
         function clearAllFields() {
              if(!confirm("ล้างข้อมูลหน้าจอทั้งหมด?")) return;
@@ -1789,28 +1807,59 @@ async function driveRefreshList(){
 
 
 async function driveLoadTxt(txtFileId, key){
+  // นำเข้า TXT (Windows-874/TIS-620) + รองรับหลายบรรทัด (หลายลำดับ)
+  let txt = "";
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + txtFileId + "?alt=media");
-    const txt = await _driveReadText(r);
-    // ใช้แค่บรรทัดแรก (1 งาน = 1 บรรทัด). ถ้ามีหลายบรรทัดจะนำเข้าบรรทัดแรกก่อน
-    const line = (txt.split(/\r?\n/).find(l=>l.length>0) || "");
-    if (!line){
-      _toast("ไฟล์ว่าง หรืออ่านไม่สำเร็จ", "warning");
-      return;
-    }
-    // Parse fixed-length ตาม columns (ลำดับ + ความยาว)
-const row = [];
-let cursor = 0;
-for (let i=0;i<columns.length;i++){
-  const c = columns[i];
-  const w = c.l;
-  const raw = line.slice(cursor, cursor + w);
-  cursor += w;
+    txt = await _driveReadText(r);
+  }catch(e){
+    console.error(e);
+    _toast("นำเข้า TXT ไม่สำเร็จ (เช็คสิทธิ์/เน็ต)", "error");
+    return;
+  }
 
-  // ตัด space ด้านขวาออก (แต่ไม่ยุ่ง 0)
-  let v = (raw || "").replace(/\s+$/,'');
-  // ถ้าช่องนั้นเป็นตัวเลขและทั้งช่องเป็น 0 ทั้งหมด → คงไว้เป็น 0... (ให้ผู้ใช้เห็นตามจริง)
-  row[i] = v;
+  const lines = (txt || "").split(/\r?\n/).filter(l => (l || "").length > 0);
+  if (!lines.length){
+    _toast("ไฟล์ว่าง หรืออ่านไม่สำเร็จ", "warning");
+    return;
+  }
+
+  const parseLine = (line)=>{
+    const row = [];
+    let cursor = 0;
+    for (let i=0;i<columns.length;i++){
+      const c = columns[i];
+      const w = c.l;
+      const raw = line.slice(cursor, cursor + w);
+      cursor += w;
+      // ตัด space ด้านขวาออก (ไม่ยุ่ง 0)
+      row[i] = (raw || "").replace(/\s+$/,'');
+    }
+    return row;
+  };
+
+  // Parse ทุกบรรทัดเป็น records (รองรับบัญชีเดียวหลายลำดับ)
+  try{
+    records = lines.map(parseLine);
+    tempState = records[0].slice();
+
+    // ตั้งค่าข้อ 2 (เลขที่บัญชีบริษัท) ถ้าผู้ใช้ส่งชื่อไฟล์มา
+    if (key && !String(tempState[1] ?? "").trim()){
+      tempState[1] = key;
+      records[0][1] = key;
+    }
+
+    // หลังนำเข้า: สลับแท็บด้วย switchTab เพื่อให้ UI รีเฟรชทันที
+    try{ switchTab(1); }catch(_e){ currentTab = 1; }
+    try{ updateNextSeqDisplay(); }catch(_e){}
+    try{ render(); }catch(_e){}
+
+    _toast(`นำเข้าไฟล์ TXT แล้ว ✅ (${records.length} รายการ)`, "success");
+    try{ closeDriveModal(); }catch(_e){}
+  }catch(e){
+    console.error(e);
+    _toast("นำเข้า TXT ไม่สำเร็จ (ไฟล์รูปแบบไม่ถูกต้อง)", "error");
+  }
 }
 // Apply to UI state
     tempState = row.slice();
@@ -1895,12 +1944,25 @@ function driveAutoSaveTick(){
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
   if (!jobKey) return;
-  // autosave JSON อย่างเดียว (เบา) ทุก 60 วินาที
+
+  // TXT ONLY: autosave เขียนเป็น .txt (source of truth = TXT) ห้ามสร้าง JSON ใน Drive
   driveEnsureConfig().then(async ()=>{
-    const jsonName = jobKey + ".dltjob.autosave.json";
-    const payload = { version: 1, autosave: true, savedAt: new Date().toISOString(), columns, records, tempState, activeTab };
-    const jsonBlob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-    await driveUpsertFileInFolder(driveConfig.folderId, jsonName, jsonBlob);
+    const { bytes } = _buildTxt();
+    const txtName = jobKey + ".txt";
+    const txtBlob = new Blob([bytes], {type:"text/plain"});
+    await driveUpsertFileInFolder(driveConfig.folderId, txtName, txtBlob);
+
+    // best-effort: ลบผี .dltjob.autosave.json ถ้ายังมีค้างอยู่ (เพื่อความสะอาด)
+    try{
+      const jsonName = jobKey + ".dltjob.autosave.json";
+      const q = encodeURIComponent(`'${driveConfig.folderId}' in parents and trashed=false and name='${jsonName}'`);
+      const rr = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=" + q);
+      const dd = await rr.json();
+      for (const f of (dd.files||[])){
+        try{ await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id, {method:"DELETE"}); }catch(_e){}
+      }
+    }catch(_e){}
+
     const t = document.getElementById("driveStatusText");
     if (t) t.textContent = "เชื่อมแล้ว • autosave ล่าสุด " + new Date().toLocaleTimeString();
   }).catch(()=>{});
