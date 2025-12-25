@@ -1589,9 +1589,10 @@ function _buildTxt(){
       const start = col.pos - 1;
       const width = col.width;
       let val = (rec && rec[i] != null) ? String(rec[i]) : "";
-      // If user left blank, MUST fill with 0 to full width (DLT spec)
+      // If user left blank, fill with 0 for numeric-only, else spaces
       if (!val){
-        val = "0".repeat(width);
+        if (col.type === 'number') val = "0".repeat(width);
+        else val = " ".repeat(width);
       }
       // For sequence field (index 2), ensure pad 6 with leading zeros
       if (i === 2){
@@ -1624,10 +1625,17 @@ async function driveSaveJob(){
   await driveEnsureConfig();
   const {bytes} = _buildTxt();
 
-  // Save TXT only (NO JSON anywhere)
+  // Save TXT (ANSI/TIS-620)
   const txtName = jobKey + ".txt";
+  const jsonName = jobKey + ".dltjob.json";
+
+  // Save JSON for perfect reload
+  const payload = { version: 1, savedAt: new Date().toISOString(), columns, records, tempState, activeTab };
+  const jsonBlob = new Blob([JSON.stringify(payload)], {type:"application/json"});
 
   await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain"}));
+  await driveUpsertFileInFolder(driveConfig.folderId, jsonName, jsonBlob);
+
   _toast("บันทึกขึ้น Drive แล้ว ✅ ("+jobKey+")", "success");
   await driveRefreshList();
 }
@@ -1660,26 +1668,51 @@ async function driveRefreshList(){
   if (!driveAccessToken) return;
   await driveEnsureConfig();
   const folderId = driveConfig.folderId;
-
-  // TXT only (no JSON files)
-  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and name contains '.txt'`);
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '.dltjob.json' or name contains '.txt')`);
   const r = await driveApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime,size,mimeType)&orderBy=modifiedTime desc&q=" + q);
   const data = await r.json();
+  // รวมทั้งไฟล์ .dltjob.json และไฟล์ .txt ที่โยนเข้ามาเอง
   const files = (data.files||[]);
+  const jsonMap = new Map();
+  const txtMap  = new Map();
 
-  const jobs = files
-    .filter(f => (f.name||"").toLowerCase().endsWith(".txt"))
-    .map(f => ({
-      key: (f.name||"").replace(/\.txt$/i,""),
-      txtId: f.id,
-      modifiedTime: f.modifiedTime || null
-    }));
+  for (const f of files){
+    if (f.name.endsWith(".dltjob.json")){
+      const key = f.name.replace(/\.dltjob\.json$/,'');
+      jsonMap.set(key, { key, jsonId: f.id, modifiedTime: f.modifiedTime });
+    } else if (f.name.toLowerCase().endsWith(".txt")){
+      const key = f.name.replace(/\.txt$/i,'');
+      txtMap.set(key, { key, txtId: f.id, modifiedTime: f.modifiedTime });
+    }
+  }
+
+  // รวมคีย์ทั้งหมด (json มาก่อน ถ้ามีทั้งคู่)
+  const allKeys = Array.from(new Set([...jsonMap.keys(), ...txtMap.keys()]));
+  // เรียงตามเวลาแก้ล่าสุด (ถ้ามีทั้งคู่ เอาเวลาที่ใหม่สุด)
+  allKeys.sort((a,b)=>{
+    const ta = Math.max(Date.parse(jsonMap.get(a)?.modifiedTime||0), Date.parse(txtMap.get(a)?.modifiedTime||0));
+    const tb = Math.max(Date.parse(jsonMap.get(b)?.modifiedTime||0), Date.parse(txtMap.get(b)?.modifiedTime||0));
+    return tb - ta;
+  });
+
+  const jobs = allKeys.map(k=>{
+    const j = jsonMap.get(k);
+    const t = txtMap.get(k);
+    return {
+      key: k,
+      jsonId: j?.jsonId || null,
+      txtId: t?.txtId || null,
+      modifiedTime: (j?.modifiedTime && t?.modifiedTime) ? (Date.parse(j.modifiedTime) > Date.parse(t.modifiedTime) ? j.modifiedTime : t.modifiedTime)
+                    : (j?.modifiedTime || t?.modifiedTime || null),
+      hasJson: !!j,
+      hasTxt:  !!t
+    };
+  });
 
   const list = document.getElementById("driveList");
   const count = document.getElementById("driveCount");
   if (count) count.textContent = String(jobs.length);
   if (!list) return;
-
   if (!jobs.length){
     list.innerHTML = `<div class="col-span-full text-center text-slate-400 py-10">
       <div class="text-5xl mb-2">🗂️</div>
@@ -1694,28 +1727,35 @@ async function driveRefreshList(){
       <div>
         <div class="text-sm font-extrabold text-slate-800">${j.key}</div>
         <div class="text-[11px] text-slate-500 font-bold mt-1">แก้ล่าสุด: ${j.modifiedTime ? new Date(j.modifiedTime).toLocaleString() : "-"}</div>
-        <div class="text-[10px] mt-1 font-bold text-slate-400">TXT</div>
+        <div class="text-[10px] mt-1 font-bold text-slate-400">${j.hasTxt ? "มี TXT" : ""}${(j.hasTxt && j.hasJson) ? " • " : ""}${j.hasJson ? "มีไฟล์แก้ไข" : ""}</div>
       </div>
       <div class="flex gap-2">
-        <button class="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold hover:bg-slate-800" onclick="driveLoadTxt('${j.txtId}', '${j.key.replace(/'/g,"&#39;")}')">
-          <span class="material-icons-round align-middle text-base mr-1">upload_file</span> นำเข้า
-        </button>
-        <button class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold hover:bg-slate-50" onclick="driveDownloadTxt('${j.txtId}', '${j.key.replace(/'/g,"&#39;")}')">
-          <span class="material-icons-round align-middle text-base mr-1">download</span> TXT
-        </button>
+        ${j.hasJson ? `
+          <button class="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold hover:bg-slate-800" onclick="driveLoadJob('${j.jsonId}')">
+            <span class="material-icons-round align-middle text-base mr-1">upload_file</span> เปิด
+          </button>
+        ` : `
+          <button class="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold hover:bg-slate-800" onclick="driveLoadTxt('${j.txtId}', '${j.key.replace(/'/g,"&#39;")}')">
+            <span class="material-icons-round align-middle text-base mr-1">upload_file</span> นำเข้า
+          </button>
+        `}
+        ${j.hasTxt ? `
+          <button class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold hover:bg-slate-50" onclick="driveDownloadTxt('${j.txtId}', '${j.key.replace(/'/g,"&#39;")}')">
+            <span class="material-icons-round align-middle text-base mr-1">download</span> TXT
+          </button>
+        ` : ``}
       </div>
     </div>
   `).join("");
 }
 
+
 async function driveLoadTxt(txtFileId, key){
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + txtFileId + "?alt=media");
-    const buf = await r.arrayBuffer();
-    const txt = new TextDecoder('windows-874').decode(buf);
-    // นำเข้าทุกบรรทัดที่ไม่ว่าง (1 บรรทัด = 1 งาน)
-    const lines = txt.split(/\r?\n/).map(l=>l.replace(/\s+$/,'')).filter(l=>l.length>0);
-    const line = lines[0] || "";
+    const txt = await r.text();
+    // ใช้แค่บรรทัดแรก (1 งาน = 1 บรรทัด). ถ้ามีหลายบรรทัดจะนำเข้าบรรทัดแรกก่อน
+    const line = (txt.split(/\r?\n/).find(l=>l.length>0) || "");
     if (!line){
       _toast("ไฟล์ว่าง หรืออ่านไม่สำเร็จ", "warning");
       return;
@@ -1731,17 +1771,7 @@ async function driveLoadTxt(txtFileId, key){
     }
     // Apply to UI state
     tempState = Object.assign({}, rec);
-    records = lines.map(ln=>{
-      const r0 = {};
-      for (let i=0;i<columns.length;i++){
-        const col = columns[i];
-        const start = col.pos - 1;
-        const width = col.width;
-        const raw = ln.slice(start, start + width);
-        r0[i] = (raw || "").replace(/\s+$/,'');
-      }
-      return r0;
-    });
+    records = [Object.assign({}, rec)];
     // ตั้งค่าข้อ 2 (เลขที่บัญชีบริษัท) ถ้าผู้ใช้ส่งชื่อไฟล์มา
     if (key && !String(tempState[1]||"").trim()){
       tempState[1] = key;
@@ -1778,8 +1808,7 @@ async function driveDownloadTxt(txtFileId, key){
 async function driveLoadJob(jsonFileId){
   try{
     const r = await driveApi("https://www.googleapis.com/drive/v3/files/" + jsonFileId + "?alt=media");
-    const buf = await r.arrayBuffer();
-    const txt = new TextDecoder('windows-874').decode(buf);
+    const txt = await r.text();
     const payload = JSON.parse(txt);
 
     if (payload.columns) columns = payload.columns;
@@ -1821,7 +1850,7 @@ async function driveExportTxtFromJob(jobKey){
 
 async function driveDeleteAllJobs(){
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); return; }
-  if (!confirm("ลบไฟล์งานทั้งหมดในโฟลเดอร์นี้? (.txt ทั้งหมด)")) return;
+  if (!confirm("ลบไฟล์งานทั้งหมดในโฟลเดอร์นี้? (ทั้ง .txt และ .dltjob.json)")) return;
   await driveEnsureConfig();
   const folderId = driveConfig.folderId;
   const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
@@ -1841,15 +1870,14 @@ function driveAutoSaveTick(){
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
   if (!jobKey) return;
-  // autosave TXT เท่านั้น ทุก 60 วินาที (NO JSON)
+  // autosave JSON อย่างเดียว (เบา) ทุก 60 วินาที
   driveEnsureConfig().then(async ()=>{
-    const {bytes} = _buildTxt();
-    const txtName = jobKey + ".txt";
-    await driveUpsertFileInFolder(driveConfig.folderId, txtName, new Blob([bytes], {type:"text/plain"}));
+    const jsonName = jobKey + ".dltjob.autosave.json";
+    const payload = { version: 1, autosave: true, savedAt: new Date().toISOString(), columns, records, tempState, activeTab };
+    const jsonBlob = new Blob([JSON.stringify(payload)], {type:"application/json"});
+    await driveUpsertFileInFolder(driveConfig.folderId, jsonName, jsonBlob);
     const t = document.getElementById("driveStatusText");
     if (t) t.textContent = "เชื่อมแล้ว • autosave ล่าสุด " + new Date().toLocaleTimeString();
-    // refresh list silently (best-effort)
-    driveRefreshList().catch(()=>{});
   }).catch(()=>{});
 }
 
