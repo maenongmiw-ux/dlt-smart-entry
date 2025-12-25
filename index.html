@@ -1246,7 +1246,31 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
              let str = (text === 0 ? '0' : String((text ?? '')));
              if (str === "") {
                  str = padType === '0' ? "0".repeat(length) : " ".repeat(length);
-             } else {
+             }
+
+// ---- Encoding: Windows-874 / ANSI (Thai) ----
+function _encodeWindows874(str){
+  const out = new Uint8Array(str.length);
+  for(let i=0;i<str.length;i++){
+    const c = str.charCodeAt(i);
+    if (c <= 0x7F){
+      out[i] = c;
+    } else if (c >= 0x0E01 && c <= 0x0E3A){
+      out[i] = 0xA0 + (c - 0x0E00);
+    } else if (c === 0x0E3F){
+      out[i] = 0xDF;
+    } else if (c >= 0x0E40 && c <= 0x0E5B){
+      out[i] = 0xE0 + (c - 0x0E40);
+    } else if (c === 0x20AC){ // €
+      out[i] = 0x80;
+    } else {
+      out[i] = 0x3F; // '?'
+    }
+  }
+  return out;
+}
+
+ else {
                  if (str.length > length) str = str.substring(0, length);
                  const padChar = padType === '0' ? '0' : ' ';
                  if (align === 'r' || padType === '0') str = str.padStart(length, padChar);
@@ -1255,34 +1279,39 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
              return str;
         }
 
-        function exportToANSI() {
-            if(records.length === 0) return alert("ไม่มีข้อมูล");
-            
-            let content = "";
-            records.forEach(row => {
-                let line = "";
-                row.forEach((val, idx) => {
-                    const c = columns[idx];
-                    line += formatFixedWidth(val, c.l, c.p, c.a);
-                });
-                content += line + "\r\n";
-            });
-            
-            // Mock Encoding
-            const buffer = new Uint8Array(content.length);
-            for (let i = 0; i < content.length; i++) {
-                let code = content.charCodeAt(i);
-                buffer[i] = (code > 128) ? code - 3424 : code;
-            }
-            
-            const blob = new Blob([buffer], { type: 'text/plain; charset=windows-874' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = (_getJobKey() ? (_getJobKey()+'.txt') : `DLT_${new Date().toISOString().slice(0,10)}.txt`);
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+        
+function exportToANSI() {
+  try{
+    if (!records || records.length === 0){
+      _toast("ยังไม่มีรายการบันทึก — กด “บันทึกงาน” ก่อน", "warning");
+      return;
+    }
+    // Build fixed-length lines
+    let content = "";
+    records.forEach(row => {
+      let line = "";
+      row.forEach((val, idx) => {
+        const c = columns[idx];
+        line += formatFixedWidth(val ?? "", c.l, c.p, c.a);
+      });
+      content += line + "
+";
+    });
+
+    const bytes = _encodeWindows874(content);
+    const blob = new Blob([bytes], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (_getJobKey() ? (_getJobKey() + ".txt") : "DLT_JOB.txt");
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+    _toast("ส่งออก TXT แล้ว ✅", "success");
+  }catch(err){
+    console.error(err);
+    alert("ส่งออกไม่สำเร็จ: " + (err?.message || err));
+  }
+}
 
         function downloadApp() {
             const htmlContent = document.documentElement.outerHTML;
@@ -1437,70 +1466,82 @@ async function driveApi(url, opts={}){
 
 // ---------- Config in appDataFolder ----------
 async function driveEnsureConfig(){
-  // TXT-only config stored in appDataFolder as DLT_APP_CONFIG.txt
-  const CFG_NAME = "DLT_APP_CONFIG.txt";
-  const q = encodeURIComponent(`name='${CFG_NAME}' and trashed=false`);
-  const url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime)&q=" + q;
-  const r = await driveApi(url);
-  const data = await r.json();
+  // Prefer localStorage (works even if appDataFolder scope isn't granted)
+  try{
+    const ls = JSON.parse(localStorage.getItem("DLT_DRIVE_CFG")||"{}");
+    if (ls && typeof ls === "object"){
+      if (ls.folderId) driveConfig.folderId = ls.folderId;
+      if (ls.folderName) driveConfig.folderName = ls.folderName;
+    }
+  }catch(e){}
 
-  const parseCfg = (txt)=>{
-    const cfg = {};
-    (txt||"").split(/\r?\n/).forEach(line=>{
-      const s=line.trim();
-      if(!s || s.startsWith("#")) return;
-      const i=s.indexOf("=");
-      if(i<0) return;
-      const k=s.slice(0,i).trim();
-      const v=s.slice(i+1).trim();
-      cfg[k]=v;
-    });
-    return cfg;
-  };
+  // Try appDataFolder TXT config if allowed (best effort)
+  try{
+    const CFG_NAME = "DLT_APP_CONFIG.txt";
+    const q = encodeURIComponent(`name='${CFG_NAME}' and trashed=false`);
+    const url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime)&q=" + q;
+    const r = await driveApi(url);
+    const data = await r.json();
 
-  if (data.files && data.files.length){
-    const f = data.files[0];
-    driveConfig.configFileId = f.id;
-    const d = await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
-    const buf = await d.arrayBuffer();
-    let txt = "";
-    try{ txt = new TextDecoder("utf-8").decode(buf); }catch(e){ txt = ""; }
-    const cfg = parseCfg(txt);
-    driveConfig.folderId = cfg.folderId || driveConfig.folderId || null;
-    driveConfig.folderName = cfg.folderName || driveConfig.folderName || "DLT_JOBS";
-  } else {
-    // create default config file (TXT)
-    const content = "folderId=\nfolderName=DLT_JOBS\n";
-    const meta = { name: CFG_NAME, parents: ["appDataFolder"] };
-    const form = new FormData();
-    form.append("metadata", new Blob([JSON.stringify(meta)], {type:"application/json"}));
-    form.append("file", new Blob([content], {type:"text/plain"}));
-    const up = await driveApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-      method: "POST",
-      headers: driveHeaders(),
-      body: form
-    });
-    const res = await up.json();
-    driveConfig.configFileId = res.id;
-    driveConfig.folderId = null;
-    driveConfig.folderName = "DLT_JOBS";
+    const parseCfg = (txt)=>{
+      const cfg = {};
+      (txt||"").split(/\r?\n/).forEach(line=>{
+        const s=line.trim();
+        if(!s || s.startsWith("#")) return;
+        const i=s.indexOf("=");
+        if(i<0) return;
+        const k=s.slice(0,i).trim();
+        const v=s.slice(i+1).trim();
+        cfg[k]=v;
+      });
+      return cfg;
+    };
+
+    if (data.files && data.files.length){
+      const f = data.files[0];
+      driveConfig.configFileId = f.id;
+      const d = await driveApi("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
+      const buf = await d.arrayBuffer();
+      let txt = "";
+      try{ txt = new TextDecoder("utf-8").decode(buf); }catch(e){ txt = ""; }
+      const cfg = parseCfg(txt);
+      driveConfig.folderId = cfg.folderId || driveConfig.folderId || null;
+      driveConfig.folderName = cfg.folderName || driveConfig.folderName || "DLT_JOBS";
+    } else {
+      // Create config lazily after we know folderId; no need to create blank.
+      driveConfig.configFileId = null;
+    }
+  }catch(e){
+    // appDataFolder not permitted (common) -> ignore
+    driveConfig.configFileId = driveConfig.configFileId || null;
   }
 
-  // ensure jobs folder exists
+  // Ensure jobs folder exists (root folder by name) then persist to localStorage.
   await driveEnsureJobsFolder();
+  try{
+    localStorage.setItem("DLT_DRIVE_CFG", JSON.stringify({folderId: driveConfig.folderId, folderName: driveConfig.folderName}));
+  }catch(e){}
 }
 
 async function driveUpdateConfig(){
+  // Always persist to localStorage
+  try{
+    localStorage.setItem("DLT_DRIVE_CFG", JSON.stringify({folderId: driveConfig.folderId, folderName: driveConfig.folderName}));
+  }catch(e){}
+
+  // Best-effort write TXT config to appDataFolder if file exists and scope allows
   if (!driveConfig.configFileId) return;
   const content = `folderId=${driveConfig.folderId||""}\nfolderName=${driveConfig.folderName||"DLT_JOBS"}\n`;
-  await driveApi("https://www.googleapis.com/upload/drive/v3/files/" + driveConfig.configFileId + "?uploadType=media", {
-    method: "PATCH",
-    headers: Object.assign({"Content-Type":"text/plain; charset=utf-8"}, driveHeaders()),
-    body: content
-  });
-}
-
-async function driveEnsureJobsFolder(){
+  try{
+    await driveApi("https://www.googleapis.com/upload/drive/v3/files/" + driveConfig.configFileId + "?uploadType=media", {
+      method: "PATCH",
+      headers: Object.assign({"Content-Type":"text/plain; charset=utf-8"}, driveHeaders()),
+      body: content
+    });
+  }catch(e){
+    // ignore
+  }
+}async function driveEnsureJobsFolder(){
   if (driveConfig.folderId){
     // verify exists
     try{
@@ -1593,47 +1634,27 @@ function _encodeTIS620(str){
   return new Uint8Array(bytes);
 }
 
+
 function _buildTxt(){
-  // ใช้ logic เดิมจาก exportToANSI แต่คืน string + bytes
-  // Build each record line with fixed width columns
-  if (!records || !records.length){
-    // อย่างน้อยสร้าง 1 record จาก tempState
-    records = [Object.assign({}, tempState)];
-  }
-  // Ensure all records filled for missing fields as per column widths
-  const maxPos = 404;
-  const lines = records.map(rec=>{
-    let lineArr = Array(maxPos).fill(' ');
-    for (let i=0;i<columns.length;i++){
-      const col = columns[i];
-      const start = col.pos - 1;
-      const width = col.width;
-      let val = (rec && rec[i] != null) ? String(rec[i]) : "";
-      // If user left blank, fill with 0 for numeric-only, else spaces
-      if (!val){
-        if (col.type === 'number') val = "0".repeat(width);
-        else val = " ".repeat(width);
-      }
-      // For sequence field (index 2), ensure pad 6 with leading zeros
-      if (i === 2){
-        const n = String(val).replace(/\D/g,'').slice(-6);
-        val = n.padStart(6,'0');
-      }
-      // Uppercase English
-      val = val.toUpperCase();
-      if (val.length > width) val = val.slice(0,width);
-      // pad right with spaces to width (spec says space until next field)
-      val = val.padEnd(width,' ');
-      for (let k=0;k<width;k++){
-        lineArr[start+k] = val[k] || ' ';
-      }
+  // คืน { text, bytes } จาก records ปัจจุบัน (TXT fixed-length, ANSI)
+  // ถ้า user ยังไม่กด “บันทึกงาน” แต่กรอกในฟอร์ม ให้ถือว่าเป็น 1 record ชั่วคราว
+  const useRecords = (records && records.length) ? records : [columns.map((c,i)=> (tempState[i] ?? ""))];
+
+  let content = "";
+  useRecords.forEach(row=>{
+    let line = "";
+    for(let i=0;i<columns.length;i++){
+      const c = columns[i];
+      line += formatFixedWidth((row[i] ?? ""), c.l, c.p, c.a);
     }
-    return lineArr.join('');
+    content += line + "
+";
   });
-  const txt = lines.join("\r\n");
-  const bytes = _encodeTIS620(txt);
-  return {txt, bytes};
+
+  const bytes = _encodeWindows874(content);
+  return { text: content, bytes };
 }
+
 
 async function driveSaveJob(){
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); driveLogin(); return; }
