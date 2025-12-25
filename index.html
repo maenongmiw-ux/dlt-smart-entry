@@ -1456,6 +1456,38 @@ function _toast(msg, type="info"){
   try{ showToast(msg, type); }catch(e){ alert(msg); }
 }
 
+
+function ensureGsiLoaded(cb){
+  try{
+    if (window.google && google.accounts && google.accounts.oauth2){ cb && cb(); return; }
+  }catch(e){}
+  // already injecting?
+  if (window.__gsiLoading){
+    window.__gsiCallbacks = window.__gsiCallbacks || [];
+    window.__gsiCallbacks.push(cb);
+    return;
+  }
+  window.__gsiLoading = true;
+  window.__gsiCallbacks = window.__gsiCallbacks || [];
+  if (cb) window.__gsiCallbacks.push(cb);
+
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client";
+  s.async = true;
+  s.defer = true;
+  s.onload = ()=>{
+    window.__gsiLoading = false;
+    const cbs = window.__gsiCallbacks || [];
+    window.__gsiCallbacks = [];
+    cbs.forEach(fn=>{ try{ fn && fn(); }catch(e){} });
+  };
+  s.onerror = ()=>{
+    window.__gsiLoading = false;
+    _toast("โหลด Google Login ไม่สำเร็จ (เช็คเน็ต/บล็อคสคริปต์)", "error");
+  };
+  document.head.appendChild(s);
+}
+
 function driveInit(){
   if (driveTokenClient) return;
   if (!window.google || !google.accounts || !google.accounts.oauth2){
@@ -1480,9 +1512,15 @@ function driveInit(){
 }
 
 function driveLogin(){
-  driveInit();
-  if (!driveTokenClient) return;
-  driveTokenClient.requestAccessToken({ prompt: "consent" });
+  // Make the button always work even if GSI hasn't loaded yet
+  ensureGsiLoaded(()=>{
+    driveInit();
+    if (!driveTokenClient){
+      _toast("ยังเชื่อม Google ไม่ได้ (ลองรีเฟรช/เช็ค Client ID)", "warning");
+      return;
+    }
+    driveTokenClient.requestAccessToken({ prompt: "consent" });
+  });
 }
 
 function driveLogout(){
