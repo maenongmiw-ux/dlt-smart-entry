@@ -976,7 +976,8 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const axleTires = [{"val": "00", "label": "ไม่ระบุ"}, {"val": "01", "label": "1 เพลา 2 ล้อ ยาง 2 เส้น"}, {"val": "02", "label": "1 เพลา 2 ล้อ ยาง 4 เส้น"}, {"val": "03", "label": "2 เพลา 4 ล้อ ยาง 4 เส้น"}, {"val": "04", "label": "2 เพลา 4 ล้อ ยาง 6 เส้น"}, {"val": "05", "label": "3 เพลา 6 ล้อ ยาง 6 เส้น"}, {"val": "06", "label": "3 เพลา 6 ล้อ ยาง 8 เส้น"}, {"val": "07", "label": "3 เพลา 6 ล้อ ยาง 10 เส้น"}, {"val": "08", "label": "4 เพลา 8 ล้อ ยาง 8 เส้น"}, {"val": "09", "label": "4 เพลา 8 ล้อ ยาง 12 เส้น"}, {"val": "10", "label": "2 เพลา 4 ล้อ ยาง 8 เส้น"}, {"val": "11", "label": "มากกว่า 4 เพลา 8 ล้อ"}, {"val": "12", "label": "เพลา 1 ล้อ ยาง 1 เส้น"}, {"val": "13", "label": "เพลา 2 ล้อ ยาง 2 เส้น"}, {"val": "14", "label": "2 เพลา 3 ล้อ ยาง 3 เส้น"}, {"val": "15", "label": "เพลา/ล้อ/ยาง 8 เส้น"}, {"val": "16", "label": "เพลา/ล้อ/ยาง 12 เส้น"}, {"val": "17", "label": "เพลา/ล้อ/ยาง 16 เส้น"}, {"val": "18", "label": "ล้อเหล็ก"}, {"val": "19", "label": "ตีนตะขาบ"}, {"val": "20", "label": "2 เพลา 6 ล้อ ยาง 6 เส้น"}, {"val": "21", "label": "2 เพลา 8 ล้อ ยาง 8 เส้น"}, {"val": "22", "label": "2 เพลา 2 ล้อ ยาง 2 เส้น"}, {"val": "23", "label": "2 เพลา 3 ล้อ ยาง 2 เส้น 1 ล้อเหล็ก"}, {"val": "24", "label": "2 เพลา 9 ล้อ ยาง 9 เส้น"}, {"val": "25", "label": "เพลา 3 ล้อ ยาง 3 เส้น"}, {"val": "26", "label": "2 เพลา 2 ล้อ ยาง 9 เส้น"}, {"val": "27", "label": "2 เพลา 11 ล้อ ยาง 11 เส้น"}, {"val": "28", "label": "2 เพลา 7 ล้อ ยาง 7 เส้น"}, {"val": "29", "label": "2 เพลา 3 ล้อ ยาง 4 เส้น"}, {"val": "30", "label": "5 เพลา 10 ล้อ ยาง 20 เส้น"}, {"val": "31", "label": "ล้อยาง"}, {"val": "32", "label": "2 เพลา 1 ล้อ ยาง 4 เส้น"}];
 
         // --- 65 Columns Config (Complete) ---
-        const columns = [
+        window.columns = [
+
             // Tab 1: General
             { n: "ประเภทบัญชี", l: 1, p: "0", a: "l", ex: "1", source: "*ข้อมูลบัญชีรถ", tab: 1 },
             { n: "เลขที่บัญชีบริษัท", l: 18, p: " ", a: "l", ex: "DLT001/2562", source: "*ดูจากใบปะหน้า", tab: 1 },
@@ -1048,10 +1049,13 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             { n: "วันที่ชำระภาษี", l: 8, p: "0", a: "l", ex: "00000000", source: "*ใบเสร็จอากรขาเข้า", tab: 3 },
             { n: "เลขผู้เสียภาษี", l: 13, p: " ", a: "l", ex: "0105563031534", source: "*หนังสือรับรองบริษัท", tab: 3 } // 65
         ];
+        const columns = window.columns;
 
         let currentTab = 1;
-        let records = [];
-        let tempState = {}; // Store input values
+        window.records = window.records || [];
+        let records = window.records;
+        window.tempState = window.tempState || {}; // Store input values
+        let tempState = window.tempState;
 
         // --- Functions ---
         function render() {
@@ -1232,13 +1236,15 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 
         function clearAllFields() {
              if(!confirm("ล้างข้อมูลหน้าจอทั้งหมด?")) return;
-             tempState = {};
+        tempState = {};
+        window.tempState = tempState;
              render();
         }
         
         function clearAllRecords() {
             if(!confirm("ลบรายการทั้งหมด?")) return;
-            records = [];
+        records = [];
+        window.records = records;
             renderList();
             document.getElementById('badgeCount').innerText = 0;
             document.getElementById('badgeCount').classList.add('hidden');
@@ -1586,8 +1592,9 @@ function _buildTxt(){
   const maxPos = 404;
   const lines = records.map(rec=>{
     let lineArr = Array(maxPos).fill(' ');
-    for (let i=0;i<columns.length;i++){
-      const col = columns[i];
+    const cols = window.columns || columns;
+    for (let i=0;i<cols.length;i++){
+      const col = cols[i];
       const start = col.pos - 1;
       const width = col.width;
       let val = (rec && rec[i] != null) ? String(rec[i]) : "";
@@ -1724,8 +1731,9 @@ async function driveLoadTxt(txtFileId, key){
     }
     // Parse fixed-width by columns spec
     const rec = {};
-    for (let i=0;i<columns.length;i++){
-      const col = columns[i];
+    const cols = window.columns || columns;
+    for (let i=0;i<cols.length;i++){
+      const col = cols[i];
       const start = col.pos - 1;
       const width = col.width;
       const raw = line.slice(start, start + width);
@@ -1735,8 +1743,9 @@ async function driveLoadTxt(txtFileId, key){
     tempState = Object.assign({}, rec);
     records = lines.map(ln=>{
       const r0 = {};
-      for (let i=0;i<columns.length;i++){
-        const col = columns[i];
+      const cols = window.columns || columns;
+    for (let i=0;i<cols.length;i++){
+        const col = cols[i];
         const start = col.pos - 1;
         const width = col.width;
         const raw = ln.slice(start, start + width);
@@ -1890,5 +1899,27 @@ function showToast(message, type = 'info') {
   document.body.appendChild(box);
   showToast(message,type);
 }
+
+// ---------- Override exportToANSI to ensure TEXT-ONLY + Thai ANSI (TIS-620) ----------
+function exportToANSI(){
+  try{
+    const {bytes} = _buildTxt();
+    const jobKey = _getJobKey() || ("DLT_" + new Date().toISOString().slice(0,10));
+    const blob = new Blob([bytes], {type:"text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = jobKey + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    _toast("ส่งออกไฟล์ TXT แล้ว ✅", "success");
+  }catch(e){
+    console.error(e);
+    _toast("ส่งออกไม่สำเร็จ: " + (e && e.message ? e.message : e), "error");
+  }
+}
+
 </script>
 </body></html>
