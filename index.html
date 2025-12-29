@@ -1086,7 +1086,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     }
                     const optHtml = list.map(o => {
                         const text = isBrandDropdown ? `${o.label} : ${o.val}` : `${o.val} : ${o.label}`;
-                        return `<option value="${o.val}" ${savedVal === o.val ? 'selected' : ''}>${text}</option>`;
+                        return `<option value="${o.val}" ${String(savedVal) === String(o.val) ? 'selected' : ''}>${text}</option>`;
                     }).join('');
                     inputHtml = `
                     <div class="relative">
@@ -1110,6 +1110,15 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 </div>`;
             });
             container.innerHTML = html;
+            // Force-bind dropdown values after render (prevents defaulting to 0 when val type mismatches)
+            try {
+                columns.forEach((c, idx) => {
+                    if (!c.o) return;
+                    const el = document.getElementById(`inp_${idx}`);
+                    const v = (tempState && tempState[idx] != null) ? String(tempState[idx]).trim() : "";
+                    if (el && v) el.value = v;
+                });
+            } catch(e) { console.warn("force-bind dropdown failed", e); }
         }
 
         function saveTempState(idx, value) { tempState[idx] = value; }
