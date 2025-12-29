@@ -1079,7 +1079,12 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 
                 if (opts) {
                     const isBrandDropdown = (typeof c.o === 'string' && c.o === 'brands');
-                    const optHtml = opts.map(o => {
+                    const list = Array.isArray(opts) ? opts.slice() : opts;
+                    if (Array.isArray(list) && savedVal && !list.some(o => String(o.val) === String(savedVal))) {
+                        // preserve unknown value from imported TXT so it won't be overwritten by default option
+                        list.unshift({ val: String(savedVal), label: "(จากไฟล์)" });
+                    }
+                    const optHtml = list.map(o => {
                         const text = isBrandDropdown ? `${o.label} : ${o.val}` : `${o.val} : ${o.label}`;
                         return `<option value="${o.val}" ${savedVal === o.val ? 'selected' : ''}>${text}</option>`;
                     }).join('');
