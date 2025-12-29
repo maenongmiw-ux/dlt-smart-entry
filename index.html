@@ -1606,6 +1606,11 @@ function _buildTxt(){
   let rows = (Array.isArray(records) && records.length) ? records : [];
   if (!rows.length){
     rows = [_rowFromTempState()];
+  } else {
+    // sync current form values into first record before build (fix dropdown not reflected on export/save)
+    const current = _rowFromTempState();
+    rows[0] = current;
+    records[0] = current;
   }
 
   const lines = rows.map((row0)=>{
