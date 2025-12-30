@@ -1115,8 +1115,16 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 columns.forEach((c, idx) => {
                     if (!c.o) return;
                     const el = document.getElementById(`inp_${idx}`);
+                    if (!el) return;
                     const v = (tempState && tempState[idx] != null) ? String(tempState[idx]).trim() : "";
-                    if (el && v) el.value = v;
+                    if (v) {
+                        el.value = v;
+                    } else {
+                        // If state is empty but the UI has a default selected option,
+                        // sync it back into state so export/save won't fall back to 0.
+                        tempState[idx] = String(el.value);
+                        try { if (Array.isArray(records) && records[0]) records[0][idx] = tempState[idx]; } catch(e){}
+                    }
                 });
             } catch(e) { console.warn("force-bind dropdown failed", e); }
         }
