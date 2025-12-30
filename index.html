@@ -1591,10 +1591,23 @@ function _getColumnSlices(){
 }
 
 function _rowFromTempState(){
+  // Prefer live DOM values (prevents dropdowns showing correct value but tempState still old)
   const row = [];
   for (let i=0;i<columns.length;i++){
-    row[i] = (tempState && tempState[i] != null) ? tempState[i] : "";
+    let v = "";
+    const el = document.getElementById(`inp_${i}`);
+    if (el){
+      // input/select both have .value
+      v = (el.value != null) ? String(el.value) : "";
+    } else if (tempState && tempState[i] != null){
+      v = tempState[i];
+    } else {
+      v = "";
+    }
+    row[i] = v;
   }
+  // keep tempState in sync so other flows stay consistent
+  try { for (let i=0;i<columns.length;i++) tempState[i] = row[i]; } catch(e) {}
   return row;
 }
 
