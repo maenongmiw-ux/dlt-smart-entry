@@ -1768,14 +1768,15 @@ function _buildTxt(){
   // Build TXT (fixed-length) from current records or current form state
   const slices = _getColumnSlices();
 
-  let rows = (Array.isArray(records) && records.length) ? records : [];
+  // IMPORTANT (Multi-record export):
+  // - records[] คือรายการที่ "กดเพิ่มรายการ" แล้วเท่านั้น
+  // - tempState (หน้าจอปัจจุบัน) มักเป็น "รายการถัดไป" หลังจากกดเพิ่มรายการ
+  //   ดังนั้นห้ามเอา tempState ไปทับ records[0] เด็ดขาด ไม่งั้นบรรทัดแรกพัง
+  let rows = (Array.isArray(records) && records.length) ? records.slice() : [];
+
+  // ถ้ายังไม่มี records เลย ให้ส่งออกจากหน้าจอปัจจุบัน 1 บรรทัด
   if (!rows.length){
     rows = [_rowFromTempState()];
-  } else {
-    // sync current form values into first record before build (fix dropdown not reflected on export/save)
-    const current = _rowFromTempState();
-    rows[0] = current;
-    records[0] = current;
   }
 
   const lines = rows.map((row0)=>{
@@ -1820,7 +1821,8 @@ function _buildTxt(){
     return line;
   });
 
-  const txt = lines.join("\r\n");
+  // DLT มักอ่าน CRLF ได้ชัวร์กว่า และใส่ท้ายไฟล์ด้วย
+  const txt = lines.join("\r\n") + (lines.length ? "\r\n" : "");
   const bytes = _encodeTIS620(txt);
   return { txt, bytes, lines };
 }
