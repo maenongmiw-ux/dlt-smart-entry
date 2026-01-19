@@ -651,8 +651,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 <span class="material-icons-round text-2xl">refresh</span>
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ล้างหน้าจอ</div>
             </button>
-            <button onclick="clearAllRecords()" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm group relative">
-                <span class="material-icons-round text-2xl">delete_sweep</span>
+            <button onclick="startNewBook() class=
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ลบทั้งหมด</div>
             
 
@@ -1393,7 +1392,32 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
              render();
         }
         
-        function clearAllRecords() {
+        
+        // PATCH: Left menu "ลบทั้งหมด" = เริ่มเล่มใหม่ (รีเซ็ตลำดับที่เป็น 000001)
+        // - ไม่ลบรายการที่บันทึกในพรีวิว (records[])
+        // - ล้างหน้าจอ + รีเซ็ตลำดับที่ เพื่อเริ่มงานเล่มใหม่ได้ทันที (ไม่ต้องรีเฟรช/ล็อกอินใหม่)
+        function startNewBook(){
+            if(!confirm("เริ่มเล่มใหม่?\n- จะล้างหน้าจอ\n- รีเซ็ตลำดับที่ (ข้อ 3) เป็น 000001\n(ไม่ลบรายการที่บันทึกในพรีวิว)")) return;
+
+            // ล้างหน้าจอ (ไม่แตะ records)
+            if (typeof clearAllFields === "function") clearAllFields();
+
+            // รีเซ็ตลำดับที่ (ข้อ 3) กลับไป 000001
+            try{
+                const seqIdx = Array.isArray(columns) ? columns.findIndex(c=>c && c.isSeq) : -1;
+                if (seqIdx >= 0){
+                    if (!Array.isArray(tempState)) tempState = [];
+                    tempState[seqIdx] = "000001";
+                    const el = document.getElementById('nextSeqDisplay');
+                    if (el) el.innerText = tempState[seqIdx];
+                }
+            }catch(e){}
+
+            if (typeof render === "function") render();
+            if (typeof _toast === "function") _toast("เริ่มเล่มใหม่แล้ว ✅", "success");
+        }
+
+function clearAllRecords() {
             if(!confirm("ลบรายการทั้งหมด?")) return;
             records = [];
             renderList();
