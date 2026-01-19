@@ -1773,6 +1773,23 @@ function _buildTxt(){
   // - tempState (หน้าจอปัจจุบัน) มักเป็น "รายการถัดไป" หลังจากกดเพิ่มรายการ
   //   ดังนั้นห้ามเอา tempState ไปทับ records[0] เด็ดขาด ไม่งั้นบรรทัดแรกพัง
   let rows = (Array.isArray(records) && records.length) ? records.slice() : [];
+  // PATCH: include current (on-screen) record too, if it has real data.
+  // This prevents the last in-progress record from being omitted unless user clicks "เพิ่มรายการ" again.
+  const _sameRow = (a,b)=> a && b && a.length===b.length && a.every((v,i)=> String(v??"")===String(b[i]??""));
+  const _hasMeaningful = (row)=> row.some((v,idx)=>{
+    if (idx===1) return false; // ignore job key (ข้อ 2) - same for all records
+    if (idx===2) return false; // ignore sequence only
+    return String(v||"").trim() !== "";
+  });
+  const _currentRow = _rowFromTempState();
+  if (_hasMeaningful(_currentRow)){
+    if (!rows.length){
+      rows = [_currentRow];
+    } else if (!_sameRow(_currentRow, rows[rows.length-1])){
+      rows.push(_currentRow);
+    }
+  }
+
 
   // ถ้ายังไม่มี records เลย ให้ส่งออกจากหน้าจอปัจจุบัน 1 บรรทัด
   if (!rows.length){
