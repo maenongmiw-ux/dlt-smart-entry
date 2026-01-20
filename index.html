@@ -1,3 +1,4 @@
+
 <html lang="th"><head><script>(function(firebaseConfig, initialAuthToken, appId) {
         window.__firebase_config = firebaseConfig;
         window.__initial_auth_token = initialAuthToken;
@@ -651,7 +652,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 <span class="material-icons-round text-2xl">refresh</span>
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ล้างหน้าจอ</div>
             </button>
-            <button onclick="startNewBook()" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm group relative">
+            <button onclick="clearAllRecords()" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm group relative">
                 <span class="material-icons-round text-2xl">delete_sweep</span>
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ลบทั้งหมด</div>
             
@@ -1263,28 +1264,6 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 });
             } catch(e) { console.warn("force-bind dropdown failed", e); }
         }
-        // PATCH: tab navigation (หน้า 1/2/3)
-        // Buttons in UI call switchTab(1|2|3)
-        function switchTab(tab){
-            try{
-                currentTab = tab;
-                // update button styles
-                [1,2,3].forEach(n=>{
-                    const b = document.getElementById("tab"+n);
-                    if(!b) return;
-                    if(n===tab){
-                        b.classList.remove("tab-inactive");
-                        b.classList.add("tab-active");
-                    }else{
-                        b.classList.remove("tab-active");
-                        b.classList.add("tab-inactive");
-                    }
-                });
-            }catch(e){}
-            render();
-        }
-
-
 
         function saveTempState(idx, value) { tempState[idx] = value; }
 
@@ -1409,33 +1388,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             document.getElementById('badgeCount').innerText = records.length;
         }
 
-        function startNewBook(){
-             if(!confirm("เริ่มเล่มใหม่?
-- ล้างหน้าจอ
-- รีเซ็ตลำดับที่ (ข้อ 3) เป็น 000001
-(ไม่ลบรายการในพรีวิว)")) return;
-
-             // reset screen state only
-             tempState = {};
-             try{ currentTab = 1; }catch(e){}
-             try{ activeTab = 1; }catch(e){}
-
-             // reset seq field (ข้อ 3)
-             try{
-               const seqIdx = Array.isArray(columns) ? columns.findIndex(c=>c && c.isSeq) : -1;
-               if (seqIdx >= 0) tempState[seqIdx] = "000001";
-             }catch(e){}
-
-             // update badge if exists
-             const el = document.getElementById('nextSeqDisplay');
-             if (el) el.innerText = "000001";
-
-             if (typeof render === 'function') render();
-             if (typeof renderList === 'function') renderList();
-             if (typeof _toast === 'function') _toast('เริ่มเล่มใหม่แล้ว ✅','success');
-        }
-
-function clearAllFields() {
+        function clearAllFields() {
              if(!confirm("ล้างข้อมูลหน้าจอทั้งหมด?")) return;
              tempState = {};
              render();
@@ -2150,20 +2103,5 @@ function showToast(message, type = 'info') {
   document.body.appendChild(box);
   showToast(message,type);
 }
-
-        // PATCH: ensure inline onclick handlers work (export functions to window)
-        try{
-          Object.assign(window, {
-            switchTab, startNewBook, addRecord, clearAllFields, clearAllRecords,
-            togglePreview, toggleSetup, saveSetup, exportToANSI,
-            openModal, closeModal,
-            // drive
-            driveLogin, driveOpenJobs, driveRefreshList, drivePickOrCreateFolder, driveSaveJob,
-            driveDeleteAllJobs, driveLoadTxt, driveDownloadTxt, closeDriveModal, copyDriveFolderId,
-            // preview delete single
-            del
-          });
-        }catch(e){}
-
 </script>
 </body></html>
