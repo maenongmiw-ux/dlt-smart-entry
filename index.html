@@ -1411,7 +1411,8 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                      if (opts && opts.length) val = opts[0].val;
                    }catch(e){}
                  }
-                 if (!val && c && c.ex) val = c.ex;
+                 // IMPORTANT: new book must visually clear the form.
+                 // Do NOT auto-fill example defaults (c.ex) here, otherwise it looks like old data is still on screen.
                  if (c && c.isSeq) val = "000001"; // reset sequence
                  fresh[i] = val;
                });
