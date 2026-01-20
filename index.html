@@ -1396,10 +1396,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         
 
         function startNewBook(){
-             if(!confirm("เริ่มเล่มใหม่?
-- ล้างหน้าจอ
-- รีเซ็ตลำดับที่ (ข้อ 3) = 000001
-(ไม่ลบรายการในพรีวิว)")) return;
+             if(!confirm(`เริ่มเล่มใหม่?\n- ล้างหน้าจอ\n- รีเซ็ตลำดับที่ (ข้อ 3) = 000001\n(ไม่ลบรายการในพรีวิว)`)) return;
              // keep job key (ข้อ 2) if already filled
              const keepJobKey = (tempState && typeof tempState === 'object' && tempState[1]) ? tempState[1] : "";
 
