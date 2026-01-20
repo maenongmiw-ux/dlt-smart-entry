@@ -1396,10 +1396,9 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         
 
         function startNewBook(){
-             if(!confirm(`เริ่มเล่มใหม่?
-- ล้างหน้าจอทั้งหมด (รวมข้อ 2)
-- รีเซ็ตลำดับที่ (ข้อ 3) = 000001
-(ไม่ลบรายการในพรีวิว)`)) return;
+             if(!confirm(`เริ่มเล่มใหม่?\n- ล้างหน้าจอ\n- รีเซ็ตลำดับที่ (ข้อ 3) = 000001\n(ไม่ลบรายการในพรีวิว)`)) return;
+             // keep job key (ข้อ 2) if already filled
+             const keepJobKey = (tempState && typeof tempState === 'object' && tempState[1]) ? tempState[1] : "";
 
              const fresh = {};
              if (Array.isArray(columns)){
@@ -1412,20 +1411,6 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                      if (opts && opts.length) val = opts[0].val;
                    }catch(e){}
                  }
-                 // IMPORTANT: new book must visually clear the form.
-                 // Do NOT auto-fill example defaults (c.ex) here.
-                 if (c && c.isSeq) val = "000001"; // reset sequence
-                 fresh[i] = val;
-               });
-             }
-             // NOTE: do NOT keep job key (ข้อ 2) when starting a new book.
-             tempState = fresh;
-
-             try{ currentTab = 1; }catch(e){}
-             const el = document.getElementById('nextSeqDisplay');
-             if (el) el.innerText = "000001";
-             render();
-        }
                  // IMPORTANT: new book must visually clear the form.
                  // Do NOT auto-fill example defaults (c.ex) here, otherwise it looks like old data is still on screen.
                  if (c && c.isSeq) val = "000001"; // reset sequence
