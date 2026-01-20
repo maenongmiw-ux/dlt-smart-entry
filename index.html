@@ -1263,6 +1263,28 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 });
             } catch(e) { console.warn("force-bind dropdown failed", e); }
         }
+        // PATCH: tab navigation (หน้า 1/2/3)
+        // Buttons in UI call switchTab(1|2|3)
+        function switchTab(tab){
+            try{
+                currentTab = tab;
+                // update button styles
+                [1,2,3].forEach(n=>{
+                    const b = document.getElementById("tab"+n);
+                    if(!b) return;
+                    if(n===tab){
+                        b.classList.remove("tab-inactive");
+                        b.classList.add("tab-active");
+                    }else{
+                        b.classList.remove("tab-active");
+                        b.classList.add("tab-inactive");
+                    }
+                });
+            }catch(e){}
+            render();
+        }
+
+
 
         function saveTempState(idx, value) { tempState[idx] = value; }
 
