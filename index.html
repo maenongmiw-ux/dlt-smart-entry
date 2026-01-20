@@ -2150,5 +2150,20 @@ function showToast(message, type = 'info') {
   document.body.appendChild(box);
   showToast(message,type);
 }
+
+        // PATCH: ensure inline onclick handlers work (export functions to window)
+        try{
+          Object.assign(window, {
+            switchTab, startNewBook, addRecord, clearAllFields, clearAllRecords,
+            togglePreview, toggleSetup, saveSetup, exportToANSI,
+            openModal, closeModal,
+            // drive
+            driveLogin, driveOpenJobs, driveRefreshList, drivePickOrCreateFolder, driveSaveJob,
+            driveDeleteAllJobs, driveLoadTxt, driveDownloadTxt, closeDriveModal, copyDriveFolderId,
+            // preview delete single
+            del
+          });
+        }catch(e){}
+
 </script>
 </body></html>
