@@ -651,9 +651,9 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 <span class="material-icons-round text-2xl">refresh</span>
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ล้างหน้าจอ</div>
             </button>
-            <button onclick="clearAllRecords()" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm group relative">
+            <button onclick="startNewBook()" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm group relative">
                 <span class="material-icons-round text-2xl">delete_sweep</span>
-                <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ลบทั้งหมด</div>
+                <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">เริ่มเล่มใหม่</div>
             
             </button>
 
@@ -1394,6 +1394,38 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
              render();
         }
         
+
+        function startNewBook(){
+             if(!confirm("เริ่มเล่มใหม่? (รีเซ็ตลำดับที่กลับ 000001)
+*ไม่ลบรายการในพรีวิว*")) return;
+             // keep job key (ข้อ 2) if already filled
+             const keepJobKey = (tempState && typeof tempState === 'object' && tempState[1]) ? tempState[1] : "";
+
+             const fresh = {};
+             if (Array.isArray(columns)){
+               columns.forEach((c,i)=>{
+                 let val = "";
+                 // dropdown default: first option
+                 if (c && c.o){
+                   try{
+                     const opts = (typeof c.o === 'string') ? (appData ? appData[c.o] : null) : c.o;
+                     if (opts && opts.length) val = opts[0].val;
+                   }catch(e){}
+                 }
+                 if (!val && c && c.ex) val = c.ex;
+                 if (c && c.isSeq) val = "000001"; // reset sequence
+                 fresh[i] = val;
+               });
+             }
+             if (keepJobKey) fresh[1] = keepJobKey;
+             tempState = fresh;
+
+             try{ currentTab = 1; }catch(e){}
+             const el = document.getElementById('nextSeqDisplay');
+             if (el) el.innerText = "000001";
+             render();
+        }
+
         function clearAllRecords() {
             if(!confirm("ลบรายการทั้งหมด?")) return;
             records = [];
