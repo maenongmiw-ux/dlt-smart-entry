@@ -1394,11 +1394,21 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         }
         
         function clearAllRecords() {
-            if(!confirm("ลบรายการทั้งหมด?")) return;
-            records = [];
-            renderList();
-            document.getElementById('badgeCount').innerText = 0;
-            document.getElementById('badgeCount').classList.add('hidden');
+    if (!confirm("ลบรายการทั้งหมดและเริ่มลำดับใหม่?")) return;
+
+    // ล้างข้อมูลทั้งหมด
+    records = [];
+
+    // ล้าง localStorage ทั้งหมดของระบบนี้
+    localStorage.clear();
+
+    // รีเฟรชหน้าจอ
+    renderList();
+
+    const badge = document.getElementById('badgeCount');
+    badge.innerText = 0;
+    badge.classList.add('hidden');
+}
         }
 
         function formatFixedWidth(text, length, padType, align) {
