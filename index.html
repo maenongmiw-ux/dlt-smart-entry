@@ -651,10 +651,8 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 <span class="material-icons-round text-2xl">refresh</span>
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ล้างหน้าจอ</div>
             </button>
-            <button onclick="startNewBook()" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm group relative">
-                <span class="material-icons-round text-2xl">delete_sweep</span>
+            <button onclick="startNewBook()" class=
                 <div class="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl z-50">ลบทั้งหมด</div>
-            </button>
             
 
 <button onclick="driveLogin()" class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-500 flex items-center justify-center hover:bg-purple-500 hover:text-white transition shadow-sm group relative">
@@ -973,7 +971,142 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const colors = [{"val": "00", "label": "ไม่ระบุ"}, {"val": "01", "label": "แดง"}, {"val": "02", "label": "เหลือง"}, {"val": "03", "label": "เขียว"}, {"val": "04", "label": "น้ำตาล"}, {"val": "05", "label": "น้ำเงิน"}, {"val": "06", "label": "ชมพู"}, {"val": "07", "label": "ดำ"}, {"val": "08", "label": "ขาว"}, {"val": "09", "label": "เทา"}, {"val": "10", "label": "ฟ้า"}, {"val": "11", "label": "ส้ม"}, {"val": "12", "label": "ม่วง"}, {"val": "13", "label": "ชะแล็ก"}, {"val": "14", "label": "เนื้อ"}, {"val": "15", "label": "เงิน"}, {"val": "16", "label": "ไม้"}, {"val": "17", "label": "อิฐ,ปูน"}, {"val": "20", "label": "ทอง"}, {"val": "21", "label": "อะลูมิเนียม"}, {"val": "98", "label": "หลายสี"}];
         const vehiclePos = [{"val": "00", "label": "ไม่ระบุ"}, {"val": "01", "label": "หน้าขวา"}, {"val": "02", "label": "หน้าซ้าย"}, {"val": "03", "label": "กลางขวา"}, {"val": "04", "label": "กลางซ้าย"}, {"val": "05", "label": "หลังขวา"}, {"val": "06", "label": "หลังซ้าย"}, {"val": "07", "label": "หน้า"}, {"val": "08", "label": "กลาง"}, {"val": "09", "label": "หลัง"}, {"val": "10", "label": "ใต้ที่นั่ง"}, {"val": "11", "label": "คอบังคับเลี้ยว"}, {"val": "12", "label": "ใต้ที่นั่งขวา"}, {"val": "13", "label": "ใต้ที่นั่งซ้าย"}, {"val": "14", "label": "คานขวา"}, {"val": "15", "label": "คานซ้าย"}, {"val": "16", "label": "กระจังหน้าตอนใน"}, {"val": "17", "label": "บังโคลนหน้าขวา"}, {"val": "18", "label": "กระจังหน้าตอนนอก"}, {"val": "19", "label": "รางน้ำกระจังใน"}, {"val": "20", "label": "แผ่นโลหะขวา"}, {"val": "21", "label": "บังโคลนหลังขวา"}];
         const enginePos = [{"val": "00", "label": "ไม่ระบุ"}, {"val": "01", "label": "หน้าเครื่อง"}, {"val": "02", "label": "ท้ายเครื่อง"}, {"val": "03", "label": "ซ้ายเครื่อง"}, {"val": "04", "label": "ขวาเครื่อง"}, {"val": "05", "label": "บนเครื่อง"}, {"val": "06", "label": "ล่างเครื่อง"}, {"val": "07", "label": "ซ้ายมอเตอร์"}, {"val": "08", "label": "กลางเครื่อง"}, {"val": "09", "label": "แผ่นโลหะซ้าย"}, {"val": "10", "label": "ฐานมอเตอร์"}, {"val": "99", "label": "space"}];
-        const vehicleChars = [{"val": "00", "label": "ไม่ระบุ"}, {"val": "10", "label": "โดยสาร"}, {"val": "11", "label": "เก๋งทึบบรรทุก"}, {"val": "12", "label": "กระบะบรรทุก"}, {"val": "13", "label": "ตู้บรรทุก"}, {"val": "14", "label": "บรรทุกของเหลว,บรรทุกน้ำ"}, {"val": "15", "label": "ประทุนสองตอน"}, {"val": "16", "label": "ประทุนสองแถว"}, {"val": "18", "label": "รถแทร็กเตอร์"}, {"val": "20", "label": "พ่วง"}, {"val": "22", "label": "โดยสาร 2 ตอน 3 แถว"}, {"val": "24", "label": "ตู้นั่ง 5 ตอน"}, {"val": "26", "label": "รถดับเพลิง"}, {"val": "28", "label": "นั่งสองตอน"}, {"val": "29", "label": "นั่งสองตอนแวน"}, {"val": "32", "label": "รถบรรทุกปั้นจั่น"}, {"val": "35", "label": "กระบะบรรทุกติดตั้งเครน"}, {"val": "36", "label": "นั่งสามตอน"}, {"val": "37", "label": "บดถนน"}, {"val": "38", "label": "ตู้นั่งสองตอน"}, {"val": "41", "label": "นั่งตอนเดียว"}, {"val": "43", "label": "นั่งตอนเดียวท้ายบรรทุก"}, {"val": "45", "label": "นั่งสามตอนแวน"}, {"val": "46", "label": "ตู้นั่งสองแถว"}, {"val": "47", "label": "ประทุนตอนเดียว"}, {"val": "48", "label": "ตู้เฉพาะกิจ(แลกเปลี่ยนเงินตรา)"}, {"val": "50", "label": "รถจักรยานยนต์ไฟฟ้า"}, {"val": "51", "label": "นั่งสองตอนท้ายตู้บรรทุก"}, {"val": "52", "label": "ตู้ทึบบรรทุก"}, {"val": "53", "label": "บรรทุกติดตั้งเครนไฮโดรลิกพร้อมกระเช้า"}, {"val": "55", "label": "นั่งสี่ตอน"}, {"val": "56", "label": "ประทุนสามตอน"}, {"val": "57", "label": "กระบะบรรทุกพื้นเรียบ"}, {"val": "59", "label": "บรรทุก (สำหรับส่งบัญชี)"}, {"val": "60", "label": "กระบะบรรทุกพื้นเรียบมีเครื่องทุ่นแรง"}, {"val": "61", "label": "รถรับส่งนักเรียน"}, {"val": "62", "label": "รถยก"}, {"val": "63", "label": "กระบะบรรทุก(มีหลังคาฝาปิดด้านข้าง-ท้าย)"}, {"val": "64", "label": "กระบะบรรทุก(มีหลังคา)"}, {"val": "66", "label": "โดยสารเฉพาะกิจ"}, {"val": "68", "label": "เก๋งสามตอนแวน"}, {"val": "69", "label": "รถเฉพาะกิจ (มอเตอร์โฮม)"}, {"val": "70", "label": "รถเฉพาะกิจ (ถ่ายทอดสัญญาณ)"}, {"val": "71", "label": "รถเฉพาะกิจ (พยาบาล)"}, {"val": "72", "label": "รถเฉพาะกิจ (ตู้พยาบาล)"}, {"val": "73", "label": "กระบะบรรทุก (เสริมกระบะข้าง)"}, {"val": "74", "label": "รถเฉพาะกิจ (ขยะมูลฝอย)"}, {"val": "75", "label": "รถเฉพาะกิจ (คอนกรีต)"}, {"val": "76", "label": "รถเฉพาะกิจ (น้ำอัดลม)"}, {"val": "77", "label": "รถเฉพาะกิจ (น้ำ)"}, {"val": "78", "label": "รถเฉพาะกิจ (ซีเมนต์ผง)"}, {"val": "80", "label": "รถแทรกเตอร์ที่ใช้ในการเกษตร"}, {"val": "81", "label": "กระบะบรรทุก (ไม่มีหลังคา)"}, {"val": "82", "label": "เก๋งสี่ตอน"}, {"val": "83", "label": "รถเฉพาะกิจ (ตรวจและเฝ้าระวังคุณภาพอาหาร)"}, {"val": "84", "label": "ตู้เฉพาะกิจ (สำนักงานเคลื่อนที่)"}, {"val": "85", "label": "นั่งสองตอนท้ายบรรทุก (มีหลังคา)"}, {"val": "86", "label": "นั่งสองตอนท้ายบรรทุก (เสริมกระบะข้าง)"}, {"val": "87", "label": "นั่งสองตอนท้ายบรรทุก (โครงหลังคาปิดทึบด้านข้างและท้าย)"}, {"val": "89", "label": "รถเฉพาะกิจ (บรรเทาสาธารณะภัย)"}, {"val": "90", "label": "กระบะบรรทุก (ติดตั้งโครงเหล็ก)"}, {"val": "93", "label": "รถโดยสารเฉพาะกิจ (เอ็กซเรย์)"}, {"val": "97", "label": "รถจักรยานยนต์พ่วงข้าง"}, {"val": "98", "label": "space"}, {"val": "99", "label": "รถจักรยานยนต์"}, {"val": "A1", "label": "รถยนต์สามล้อส่วนบุคคลสำหรับคนพิการ"}, {"val": "A3", "label": "กระบะบรรทุก (แบบยกได้)"}, {"val": "A4", "label": "ประทุนสี่ตอน"}, {"val": "A5", "label": "รถเฉพาะกิจ (อุปกรณ์สื่อสาร)"}, {"val": "A6", "label": "รถเฉพาะกิจ(วิจัยข้าว)"}, {"val": "A7", "label": "รถเฉพาะกิจ(ตรวจสอบรังสี)"}, {"val": "A8", "label": "รถตู้เฉพาะกิจ(บริการประชาชน)"}, {"val": "A9", "label": "รถเฉพาะกิจ(วิเคราะห์คุณภาพน้ำ)"}, {"val": "B1", "label": "จักรยานยนต์ชนิดล้อยางคู่"}, {"val": "B2", "label": "รถใช้งานเกษตรกรรม"}, {"val": "B3", "label": "นั่งสองตอนท้ายบรรทุก (ติดตั้งเครื่องสูบน้ำ)"}, {"val": "B4", "label": "รถเฉพาะกิจ(ตรวจสอบท่อประปา)"}, {"val": "B5", "label": "รถยนต์สามล้อ (กระบะบรรทุก)"}, {"val": "B6", "label": "รถเฉพาะกิจ (ตู้ตรวจสอบคุณภาพน้ำมัน)"}, {"val": "B7", "label": "กระบะบรรทุก(ติดตั้งเครื่องทุ่นแรงด้านท้าย)"}, {"val": "B8", "label": "กระบะบรรทุก (พื้นเรียบติดตั้งโครงเหล็ก)"}, {"val": "B9", "label": "รถตู้บรรทุก(ติดตั้งลิฟท์ด้านท้าย)"}, {"val": "C1", "label": "กระบะบรรทุก(เสริมกระบะข้างลิฟท์ยกของด้านท้าย)"}, {"val": "C2", "label": "รถแทรกเตอร์ (รถกัดผิวถนน)"}, {"val": "C3", "label": "รถแทรกเตอร์ (รถปูถนน)"}, {"val": "C4", "label": "รถแทรกเตอร์ (รถเกี่ยวนวด)"}, {"val": "C5", "label": "ตู้นั่งสองตอนติดตั้งเครื่องป้องกัน/รบกวนสัญญาณ"}, {"val": "C6", "label": "รถเฉพาะกิจ (ตรวจสอบสัญญาณวิทยุกระจายเสียง)"}, {"val": "C7", "label": "รถเฉพาะกิจ (บริการซ่อมรถยนต์เคลื่อนที่)"}, {"val": "C8", "label": "รถเฉพาะกิจ (บรรทุกสุกร)"}, {"val": "C9", "label": "รถยนต์สามล้อ (ประทุน 2 ตอน)"}, {"val": "D1", "label": "รถเจาะดิน"}, {"val": "D2", "label": "รถจักรยานยนต์ติดตั้งหลังคา"}, {"val": "D3", "label": "กระบะบรรทุก (แบบยกได้) มีข้างเสริม"}, {"val": "D6", "label": "กระบะบรรทุก (เสริมกระบะข้างแบบยกได้)"}, {"val": "D7", "label": "รถยนต์สามล้อ (ตู้บรรทุก)"}, {"val": "D8", "label": "รถยนต์สามล้อ (ประทุน 3 ตอน)"}, {"val": "D9", "label": "นั่งสองตอนท้ายบรรทุก (ติดตั้งเครื่องทุ่นแรงด้านท้าย)"}, {"val": "E1", "label": "รถเฉพาะกิจ (ตรวจวิเคราะห์ด้านอนามัยและสิ่งแวดล้อม)"}, {"val": "E2", "label": "รถบรรทุกเฉพาะกิจ (บรรทุกสัตว์น้ำ)"}, {"val": "E3", "label": "รถบรรทุกเฉพาะกิจ(บรรทุกเครื่องมือซ่อมไฟฟ้า)"}, {"val": "E4", "label": "กระบะบรรทุก (แบบเปิดข้าง)"}, {"val": "E5", "label": "รถเฉพาะกิจ (รถห้องสรง)"}, {"val": "E6", "label": "รถบรรทุกเฉพาะกิจ (บรรทุกรถยนต์)"}, {"val": "E7", "label": "รถบรรทุกเฉพาะกิจ (เจาะสำรวจผิวดิน)"}];
+        const vehicleChars = [
+  {"val":"1|1","label":"1 : (1) เก๋งตอนเดียว"},
+  {"val":"2|1","label":"2 : (1) เก๋งสองตอน"},
+  {"val":"3|1","label":"3 : (1) เก๋งสองตอนแวน"},
+  {"val":"4|1","label":"4 : (1) นั่งสองแถว"},
+  {"val":"5|1","label":"5 : (1)  นั่งสองตอนท้ายบรรทุก"},
+  {"val":"6|1","label":"6 : (1) เก๋งสามตอน"},
+  {"val":"7|1","label":"7 : (1) นั่งสองตอนสองแถว"},
+  {"val":"8|1","label":"8 : (1) ตู้นั่งสามตอน"},
+  {"val":"9|1","label":"9 : (1) ตู้นั่งสี่ตอน"},
+  {"val":"10|1","label":"10 : (1) โดยสาร"},
+  {"val":"11|1","label":"11 : (1) เก๋งทึบบรรทุก"},
+  {"val":"12|1","label":"12 : (1) กระบะบรรทุก"},
+  {"val":"13|1","label":"13 : (1) ตู้บรรทุก"},
+  {"val":"14|1","label":"14 : (1) บรรทุกของเหลว,บรรทุกน้ำ"},
+  {"val":"15|1","label":"15 : (1) ประทุนสองตอน"},
+  {"val":"16|1","label":"16 : (1) ประทุนสองแถว"},
+  {"val":"18|1","label":"18 : (1) รถแทร็กเตอร์ "},
+  {"val":"20|1","label":"20 : (1) พ่วง"},
+  {"val":"22|1","label":"22 : (1) โดยสาร 2 ตอน 3 แถว"},
+  {"val":"24|1","label":"24 : (1) ตู้นั่ง 5 ตอน"},
+  {"val":"26|1","label":"26 : (1) รถดับเพลิง"},
+  {"val":"28|1","label":"28 : (1) นั่งสองตอน"},
+  {"val":"29|1","label":"29 : (1) นั่งสองตอนแวน"},
+  {"val":"32|1","label":"32 : (1) รถบรรทุกปั้นจั่น"},
+  {"val":"35|1","label":"35 : (1) กระบะบรรทุกติดตั้งเครน"},
+  {"val":"36|1","label":"36 : (1) นั่งสามตอน"},
+  {"val":"37|1","label":"37 : (1) บดถนน"},
+  {"val":"38|1","label":"38 : (1) ตู้นั่งสองตอน"},
+  {"val":"41|1","label":"41 : (1) นั่งตอนเดียว"},
+  {"val":"43|1","label":"43 : (1) นั่งตอนเดียวท้ายบรรทุก"},
+  {"val":"45|1","label":"45 : (1) นั่งสามตอนแวน"},
+  {"val":"46|1","label":"46 : (1) ตู้นั่งสองแถว"},
+  {"val":"47|1","label":"47 : (1) ประทุนตอนเดียว"},
+  {"val":"48|1","label":"48 : (1) ตู้เฉพาะกิจ(แลกเปลี่ยนเงินตรา)"},
+  {"val":"50|1","label":"50 : (1) รถจักรยานยนต์ไฟฟ้า"},
+  {"val":"51|1","label":"51 : (1) นั่งสองตอนท้ายตู้บรรทุก"},
+  {"val":"52|1","label":"52 : (1) ตู้ทึบบรรทุก"},
+  {"val":"53|1","label":"53 : (1) บรรทุกติดตั้งเครนไฮโดรลิกพร้อมกระเช้า"},
+  {"val":"55|1","label":"55 : (1) นั่งสี่ตอน"},
+  {"val":"56|1","label":"56 : (1) ประทุนสามตอน"},
+  {"val":"57|1","label":"57 : (1) กระบะบรรทุกพื้นเรียบ"},
+  {"val":"59|1","label":"59 : (1) บรรทุก (สำหรับส่งบัญชี)"},
+  {"val":"60|1","label":"60 : (1) กระบะบรรทุกพื้นเรียบมีเครื่องทุ่นแรง"},
+  {"val":"61|1","label":"61 : (1) รถรับส่งนักเรียน"},
+  {"val":"62|1","label":"62 : (1) รถยก"},
+  {"val":"63|1","label":"63 : (1) กระบะบรรทุก(มีหลังคาฝาปิดด้านข้าง-ท้าย)"},
+  {"val":"64|1","label":"64 : (1) กระบะบรรทุก(มีหลังคา)"},
+  {"val":"66|1","label":"66 : (1) โดยสารเฉพาะกิจ"},
+  {"val":"68|1","label":"68 : (1) เก๋งสามตอนแวน"},
+  {"val":"69|1","label":"69 : (1) รถเฉพาะกิจ (มอเตอร์โฮม)"},
+  {"val":"70|1","label":"70 : (1) รถเฉพาะกิจ (ถ่ายทอดสัญญาณ)"},
+  {"val":"71|1","label":"71 : (1) รถเฉพาะกิจ (พยาบาล)"},
+  {"val":"72|1","label":"72 : (1) รถเฉพาะกิจ (ตู้พยาบาล)"},
+  {"val":"73|1","label":"73 : (1) กระบะบรรทุก (เสริมกระบะข้าง)"},
+  {"val":"74|1","label":"74 : (1) รถเฉพาะกิจ (ขยะมูลฝอย)"},
+  {"val":"75|1","label":"75 : (1) รถเฉพาะกิจ (คอนกรีต)"},
+  {"val":"76|1","label":"76 : (1) รถเฉพาะกิจ (น้ำอัดลม)"},
+  {"val":"77|1","label":"77 : (1) รถเฉพาะกิจ (น้ำ)"},
+  {"val":"78|1","label":"78 : (1) รถเฉพาะกิจ (ซีเมนต์ผง)"},
+  {"val":"80|1","label":"80 : (1) รถแทรกเตอร์ที่ใช้ในการเกษตร"},
+  {"val":"81|1","label":"81 : (1) กระบะบรรทุก (ไม่มีหลังคา)"},
+  {"val":"82|1","label":"82 : (1) เก๋งสี่ตอน"},
+  {"val":"83|1","label":"83 : (1) รถเฉพาะกิจ (ตรวจและเฝ้าระวังคุณภาพอาหาร) "},
+  {"val":"84|1","label":"84 : (1) ตู้เฉพาะกิจ (สำนักงานเคลื่อนที่) "},
+  {"val":"85|1","label":"85 : (1) นั่งสองตอนท้ายบรรทุก (มีหลังคา) "},
+  {"val":"86|1","label":"86 : (1) นั่งสองตอนท้ายบรรทุก (เสริมกระบะข้าง) "},
+  {"val":"87|1","label":"87 : (1) นั่งสองตอนท้ายบรรทุก (โครงหลังคาปิดทึบด้านข้างและท้าย) "},
+  {"val":"89|1","label":"89 : (1) รถเฉพาะกิจ (บรรเทาสาธารณะภัย) "},
+  {"val":"90|1","label":"90 : (1) กระบะบรรทุก (ติดตั้งโครงเหล็ก) "},
+  {"val":"93|1","label":"93 : (1) รถโดยสารเฉพาะกิจ (เอ็กซเรย์) "},
+  {"val":"97|1","label":"97 : (1) รถจักรยานยนต์พ่วงข้าง"},
+  {"val":"98|1","label":"98 : (1) space"},
+  {"val":"99|1","label":"99 : (1) รถจักรยานยนต์"},
+  {"val":"A1|1","label":"A1 : (1) รถยนต์สามล้อส่วนบุคคลสำหรับคนพิการ"},
+  {"val":"A3|1","label":"A3 : (1) กระบะบรรทุก (แบบยกได้) "},
+  {"val":"A4|1","label":"A4 : (1) ประทุนสี่ตอน"},
+  {"val":"A5|1","label":"A5 : (1) รถเฉพาะกิจ (อุปกรณ์สื่อสาร) "},
+  {"val":"A6|1","label":"A6 : (1) รถเฉพาะกิจ(วิจัยข้าว) "},
+  {"val":"A7|1","label":"A7 : (1) รถเฉพาะกิจ(ตรวจสอบรังสี) "},
+  {"val":"A8|1","label":"A8 : (1) รถตู้เฉพาะกิจ(บริการประชาชน) "},
+  {"val":"A9|1","label":"A9 : (1) รถเฉพาะกิจ(วิเคราะห์คุณภาพน้ำ) "},
+  {"val":"B1|1","label":"B1 : (1) จักรยานยนต์ชนิดล้อยางคู่"},
+  {"val":"B2|1","label":"B2 : (1) รถใช้งานเกษตรกรรม"},
+  {"val":"B3|1","label":"B3 : (1) นั่งสองตอนท้ายบรรทุก  (ติดตั้งเครื่องสูบน้ำ) "},
+  {"val":"B4|1","label":"B4 : (1) รถเฉพาะกิจ(ตรวจสอบท่อประปา) "},
+  {"val":"B5|1","label":"B5 : (1) รถยนต์สามล้อ (กระบะบรรทุก) "},
+  {"val":"B6|1","label":"B6 : (1) รถเฉพาะกิจ (ตู้ตรวจสอบคุณภาพน้ำมัน) "},
+  {"val":"B7|1","label":"B7 : (1) กระบะบรรทุก(ติดตั้งเครื่องทุ่นแรงด้านท้าย) "},
+  {"val":"B8|1","label":"B8 : (1) กระบะบรรทุก (พื้นเรียบติดตั้งโครงเหล็ก) "},
+  {"val":"B9|1","label":"B9 : (1) รถตู้บรรทุก(ติดตั้งลิฟท์ด้านท้าย) "},
+  {"val":"C1|1","label":"C1 : (1) กระบะบรรทุก(เสริมกระบะข้างลิฟท์ยกของด้านท้าย)"},
+  {"val":"C2|1","label":"C2 : (1) รถแทร็กเตอร์ (รถกัดผิวถนน)"},
+  {"val":"C3|1","label":"C3 : (1) รถแทร็กเตอร์ (รถปูถนน)"},
+  {"val":"C4|1","label":"C4 : (1) รถแทร็กเตอร์ (รถเกี่ยวนวด)"},
+  {"val":"C5|1","label":"C5 : (1) ตู้นั่งสองตอนติดตั้งเครื่องป้องกัน/รบกวนสัญญาณ"},
+  {"val":"C6|1","label":"C6 : (1) รถเฉพาะกิจ (ตรวจสอบสัญญาณวิทยุกระจายเสียง)"},
+  {"val":"C7|1","label":"C7 : (1) รถเฉพาะกิจ (บริการซ่อมรถยนต์เคลื่อนที่)"},
+  {"val":"C8|1","label":"C8 : (1) รถเฉพาะกิจ (บรรทุกสุกร)"},
+  {"val":"C9|1","label":"C9 : (1) รถยนต์สามล้อ (ประทุน 2 ตอน)"},
+  {"val":"D1|1","label":"D1 : (1) รถเจาะดิน"},
+  {"val":"D2|1","label":"D2 : (1) รถจักรยานยนต์ติดตั้งหลังคา"},
+  {"val":"D3|1","label":"D3 : (1) กระบะบรรทุก (แบบยกได้) มีข้างเสริม"},
+  {"val":"D6|1","label":"D6 : (1) กระบะบรรทุก (เสริมกระบะข้างแบบยกได้)"},
+  {"val":"D7|1","label":"D7 : (1) รถยนต์สามล้อ (ตู้บรรทุก)"},
+  {"val":"D8|1","label":"D8 : (1) รถยนต์สามล้อ (ประทุน 3 ตอน)"},
+  {"val":"D9|1","label":"D9 : (1) นั่งสองตอนท้ายบรรทุก (ติดตั้งเครื่องทุ่นแรงด้านท้าย)"},
+  {"val":"E1|1","label":"E1 : (1) รถเฉพาะกิจ (ตรวจวิเคราะห์ด้านอนามัยและสิ่งแวดล้อม)"},
+  {"val":"E2|1","label":"E2 : (1) รถบรรทุกเฉพาะกิจ (บรรทุกสัตว์น้ำ)"},
+  {"val":"E3|1","label":"E3 : (1) รถบรรทุกเฉพาะกิจ(บรรทุกเครื่องมือซ่อมไฟฟ้า)"},
+  {"val":"E4|1","label":"E4 : (1) กระบะบรรทุก (แบบเปิดข้าง)"},
+  {"val":"E5|1","label":"E5 : (1) รถเฉพาะกิจ (รถห้องสรง)"},
+  {"val":"E6|1","label":"E6 : (1) รถบรรทุกเฉพาะกิจ (บรรทุกรถยนต์)"},
+  {"val":"E7|1","label":"E7 : (1) รถบรรทุกเฉพาะกิจ (เจาะสำรวจผิวดิน)"},
+  {"val":"1|2","label":"1 : (2) รถโดยสารปรับอากาศพิเศษ"},
+  {"val":"2|2","label":"2 : (2) รถโดยสารปรับอากาศชั้น 2"},
+  {"val":"3|2","label":"3 : (2) รถโดยสารไม่มีเครื่องปรับอากาศ"},
+  {"val":"4|2","label":"4 : (2) รถโดยสารสองชั้นปรับอากาศชนิดพิเศษ"},
+  {"val":"5|2","label":"5 : (2) รถโดยสารพ่วง"},
+  {"val":"6|2","label":"6 : (2) รถโดยสารกึ่งพ่วง"},
+  {"val":"7|2","label":"7 : (2) รถโดยสารเฉพาะกิจ"},
+  {"val":"10|2","label":"10 : (2) รถขนาดเล็ก"},
+  {"val":"11|2","label":"11 : (2) กระบะบรรทุก"},
+  {"val":"12|2","label":"12 : (2) ตู้บรรทุก"},
+  {"val":"13|2","label":"13 : (2) บรรทุกของเหลว"},
+  {"val":"14|2","label":"14 : (2) บรรทุกวัตถุอันตราย"},
+  {"val":"15|2","label":"15 : (2) บรรทุกเฉพาะกิจ"},
+  {"val":"16|2","label":"16 : (2) พ่วง"},
+  {"val":"17|2","label":"17 : (2) กึ่งพ่วง"},
+  {"val":"18|2","label":"18 : (2) กึ่งพ่วงบรรทุกวัสดุยาว"},
+  {"val":"19|2","label":"19 : (2) ลากจูง"},
+  {"val":"21|2","label":"21 : (2) บรรทุก"},
+  {"val":"22|2","label":"22 : (2) บรรทุกและโดยสาร"},
+  {"val":"23|2","label":"23 : (2) โดยสาร"},
+  {"val":"30|2","label":"30 : (2) รถโดยสารระหว่างประเทศ"}
+];
         const axleTires = [{"val": "00", "label": "ไม่ระบุ"}, {"val": "01", "label": "1 เพลา 2 ล้อ ยาง 2 เส้น"}, {"val": "02", "label": "1 เพลา 2 ล้อ ยาง 4 เส้น"}, {"val": "03", "label": "2 เพลา 4 ล้อ ยาง 4 เส้น"}, {"val": "04", "label": "2 เพลา 4 ล้อ ยาง 6 เส้น"}, {"val": "05", "label": "3 เพลา 6 ล้อ ยาง 6 เส้น"}, {"val": "06", "label": "3 เพลา 6 ล้อ ยาง 8 เส้น"}, {"val": "07", "label": "3 เพลา 6 ล้อ ยาง 10 เส้น"}, {"val": "08", "label": "4 เพลา 8 ล้อ ยาง 8 เส้น"}, {"val": "09", "label": "4 เพลา 8 ล้อ ยาง 12 เส้น"}, {"val": "10", "label": "2 เพลา 4 ล้อ ยาง 8 เส้น"}, {"val": "11", "label": "มากกว่า 4 เพลา 8 ล้อ"}, {"val": "12", "label": "เพลา 1 ล้อ ยาง 1 เส้น"}, {"val": "13", "label": "เพลา 2 ล้อ ยาง 2 เส้น"}, {"val": "14", "label": "2 เพลา 3 ล้อ ยาง 3 เส้น"}, {"val": "15", "label": "เพลา/ล้อ/ยาง 8 เส้น"}, {"val": "16", "label": "เพลา/ล้อ/ยาง 12 เส้น"}, {"val": "17", "label": "เพลา/ล้อ/ยาง 16 เส้น"}, {"val": "18", "label": "ล้อเหล็ก"}, {"val": "19", "label": "ตีนตะขาบ"}, {"val": "20", "label": "2 เพลา 6 ล้อ ยาง 6 เส้น"}, {"val": "21", "label": "2 เพลา 8 ล้อ ยาง 8 เส้น"}, {"val": "22", "label": "2 เพลา 2 ล้อ ยาง 2 เส้น"}, {"val": "23", "label": "2 เพลา 3 ล้อ ยาง 2 เส้น 1 ล้อเหล็ก"}, {"val": "24", "label": "2 เพลา 9 ล้อ ยาง 9 เส้น"}, {"val": "25", "label": "เพลา 3 ล้อ ยาง 3 เส้น"}, {"val": "26", "label": "2 เพลา 2 ล้อ ยาง 9 เส้น"}, {"val": "27", "label": "2 เพลา 11 ล้อ ยาง 11 เส้น"}, {"val": "28", "label": "2 เพลา 7 ล้อ ยาง 7 เส้น"}, {"val": "29", "label": "2 เพลา 3 ล้อ ยาง 4 เส้น"}, {"val": "30", "label": "5 เพลา 10 ล้อ ยาง 20 เส้น"}, {"val": "31", "label": "ล้อยาง"}, {"val": "32", "label": "2 เพลา 1 ล้อ ยาง 4 เส้น"}];
 
         // --- 65 Columns Config (Complete) ---
@@ -1086,7 +1219,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                         list.unshift({ val: String(savedVal), label: "(จากไฟล์)" });
                     }
                     const optHtml = list.map(o => {
-                        const text = isBrandDropdown ? `${o.label} : ${o.val}` : `${o.val} : ${o.label}`;
+                        const text = isBrandDropdown ? `${o.label} : ${o.val}` : (c.o === vehicleChars ? `${o.label}` : `${o.val} : ${o.label}`);
                         return `<option value="${o.val}" ${String(savedVal) === String(o.val) ? 'selected' : ''}>${text}</option>`;
                     }).join('');
                     inputHtml = `
@@ -1186,42 +1319,6 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             setTimeout(() => badge.classList.remove('animate-ping'), 500);
         }
 
-
-        // Helper: build current row from tempState WITHOUT mutating records or advancing sequence
-        function _currentRowFromTemp(){
-            let row = [];
-            columns.forEach((c, i) => {
-                let val = tempState[i] || "";
-                if (!val && c.o) {
-                    let opts = (typeof c.o === 'string') ? appData[c.o] : c.o;
-                    if (opts && opts.length > 0) val = opts[0].val;
-                }
-                if (c.isSeq) { if (!val && c.ex) val = c.ex; }
-                row.push(val);
-            });
-            // treat as meaningful if any non-empty
-            const hasData = row.some(v => (v !== null && v !== undefined && String(v).trim() !== ""));
-            return hasData ? row : null;
-        }
-
-        // Helper: commit current row into records if it's not already there (used on Save/Export)
-        function _commitCurrentRowIfNeeded(){
-            const row = _currentRowFromTemp();
-            if (!row) return false;
-            // avoid duplicate exact row
-            if (records.length && JSON.stringify(records[records.length-1]) === JSON.stringify(row)) return false;
-            // avoid duplicate sequence (index of sequence field)
-            const seqIdx = columns.findIndex(c => c.isSeq);
-            if (seqIdx >= 0) {
-                const seq = String(row[seqIdx] || "");
-                if (seq && records.some(r => String(r[seqIdx]||"") === seq)) return false;
-            }
-            records.push(row);
-            document.getElementById('badgeCount').innerText = records.length;
-            document.getElementById('badgeCount').classList.remove('hidden');
-            return true;
-        }
-
         // --- Modals ---
         function openModal(key, title) {
             currentModalTarget = key;
@@ -1289,31 +1386,57 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             document.getElementById('badgeCount').innerText = records.length;
         }
 
-        
-        function startNewBook() {
-            if(!confirm('เริ่มเล่มใหม่? (รีเซ็ตลำดับกลับ 000001 และล้างข้อมูลบนจอทุกหน้า)')) return;
-            // reset form state only (do NOT touch preview records)
-            tempState = {};
-            // reset sequence field
-            try {
-                let seqIdx = columns.findIndex(c => c && c.isSeq);
-                if (seqIdx >= 0) {
-                    tempState[seqIdx] = String(columns[seqIdx].ex || '000001');
-                    const ns = document.getElementById('nextSeqDisplay');
-                    if (ns) ns.innerText = tempState[seqIdx];
-                }
-            } catch(e) {}
-            // back to page 1
-            try { switchTab(1); } catch(e) { currentTab = 1; render(); }
-        }
-
-function clearAllFields() {
+        function clearAllFields() {
              if(!confirm("ล้างข้อมูลหน้าจอทั้งหมด?")) return;
              tempState = {};
              render();
         }
         
-        function clearAllRecords() {
+        
+        // PATCH: Left menu "ลบทั้งหมด" = เริ่มเล่มใหม่ (รีเซ็ตลำดับที่เป็น 000001)
+        // - ไม่ลบรายการที่บันทึกในพรีวิว (records[])
+        // - ล้างหน้าจอ + รีเซ็ตลำดับที่ เพื่อเริ่มงานเล่มใหม่ได้ทันที (ไม่ต้องรีเฟรช/ล็อกอินใหม่)
+        function startNewBook(){
+            if(!confirm("เริ่มเล่มใหม่?\n- จะล้างหน้าจอ\n- รีเซ็ตลำดับที่ (ข้อ 3) เป็น 000001\n(ไม่ลบรายการที่บันทึกในพรีวิว)")) return;
+
+            // รีเซ็ตเฉพาะหน้าจอ (ไม่แตะ records[])
+            tempState = {};
+
+            // เติมค่า default ให้ครบทุกคอลัมน์ (กัน render พัง)
+            if (Array.isArray(columns)){
+              columns.forEach((c, i)=>{
+                let val = "";
+                // dropdown: default เป็นตัวแรก
+                if (c && c.o){
+                  try{
+                    const opts = (typeof c.o === "string") ? (appData ? appData[c.o] : null) : c.o;
+                    if (opts && opts.length) val = opts[0].val;
+                  }catch(e){}
+                }
+                // sequence field (ข้อ 3)
+                if (c && c.isSeq) val = "000001";
+                // static example/default
+                if (!val && c && c.ex) val = c.ex;
+                tempState[i] = val;
+              });
+            }
+
+            // รีเซ็ตแท็บกลับหน้าแรก (ตัวจริงที่ render() ใช้คือ currentTab)
+            try{ currentTab = 1; }catch(e){}
+            try{ activeTab = 1; }catch(e){}
+
+            // อัปเดต badge next sequence (ถ้ามี)
+            const el = document.getElementById('nextSeqDisplay');
+            if (el) el.innerText = "000001";
+
+            // เรนเดอร์ฟอร์ม + พรีวิวใหม่ (แต่ไม่ลบ records)
+            if (typeof render === "function") render();
+            if (typeof renderList === "function") renderList();
+
+            if (typeof _toast === "function") _toast("เริ่มเล่มใหม่แล้ว ✅", "success");
+        }
+
+function clearAllRecords() {
             if(!confirm("ลบรายการทั้งหมด?")) return;
             records = [];
             renderList();
@@ -1335,8 +1458,7 @@ function clearAllFields() {
         }
 
         function exportToANSI() {
-  const _commitCurrentRowIfNeeded();
-  {bytes} = _buildTxt();
+  const {bytes} = _buildTxt();
   if (!bytes || !bytes.length){
     alert("ไม่มีข้อมูล");
     return;
@@ -1686,44 +1808,35 @@ function _normalizeRow(row){
 
 
 function _buildTxt(){
-  // Build TXT (fixed-length) from current records ONLY.
-  // IMPORTANT: multi-record must never be overwritten by current form state.
+  // Build TXT (fixed-length) from current records or current form state
   const slices = _getColumnSlices();
 
+  // IMPORTANT (Multi-record export):
+  // - records[] คือรายการที่ "กดเพิ่มรายการ" แล้วเท่านั้น
+  // - tempState (หน้าจอปัจจุบัน) มักเป็น "รายการถัดไป" หลังจากกดเพิ่มรายการ
+  //   ดังนั้นห้ามเอา tempState ไปทับ records[0] เด็ดขาด ไม่งั้นบรรทัดแรกพัง
   let rows = (Array.isArray(records) && records.length) ? records.slice() : [];
-            // SAFETY: include current on-screen row if user didn't press "เพิ่มรายการ" yet
-            const _pending = _currentRowFromTemp();
-            if (_pending){
-                const sameAsLast = rows.length && JSON.stringify(rows[rows.length-1]) === JSON.stringify(_pending);
-                if (!sameAsLast){
-                    const seqIdx = columns.findIndex(c => c.isSeq);
-                    if (seqIdx < 0 || !rows.some(r => String(r[seqIdx]||"") === String(_pending[seqIdx]||""))){
-                        rows.push(_pending);
-                    }
-                }
-            }
-
-  if (!rows.length){
-    // no saved record yet -> export current form as a single line
-    rows = [_rowFromTempState()];
-  }
-
-  // Critical guard: prevent duplicate sequence (ข้อ 3) that would indicate overwrite risk
-  let seqIdx = -1;
-  for (let i=0;i<columns.length;i++){
-    if (columns[i] && columns[i].isSeq){ seqIdx = i; break; }
-  }
-  if (seqIdx >= 0 && rows.length > 1){
-    const seen = new Set();
-    for (const r of rows){
-      const rr = _normalizeRow(r);
-      const s = String(rr[seqIdx] ?? "").replace(/\D/g,'').slice(-6).padStart(6,'0');
-      if (seen.has(s)){
-        alert("ERROR: ลำดับที่ซ้ำกัน (ข้อ 3) — ระบบจะไม่ส่งออกเพื่อกันข้อมูลทับกัน");
-        return {bytes: new Uint8Array(), text: ""};
-      }
-      seen.add(s);
+  // PATCH: include current (on-screen) record too, if it has real data.
+  // This prevents the last in-progress record from being omitted unless user clicks "เพิ่มรายการ" again.
+  const _sameRow = (a,b)=> a && b && a.length===b.length && a.every((v,i)=> String(v??"")===String(b[i]??""));
+  const _hasMeaningful = (row)=> row.some((v,idx)=>{
+    if (idx===1) return false; // ignore job key (ข้อ 2) - same for all records
+    if (idx===2) return false; // ignore sequence only
+    return String(v||"").trim() !== "";
+  });
+  const _currentRow = _rowFromTempState();
+  if (_hasMeaningful(_currentRow)){
+    if (!rows.length){
+      rows = [_currentRow];
+    } else if (!_sameRow(_currentRow, rows[rows.length-1])){
+      rows.push(_currentRow);
     }
+  }
+
+
+  // ถ้ายังไม่มี records เลย ให้ส่งออกจากหน้าจอปัจจุบัน 1 บรรทัด
+  if (!rows.length){
+    rows = [_rowFromTempState()];
   }
 
   const lines = rows.map((row0)=>{
@@ -1733,6 +1846,8 @@ function _buildTxt(){
       const c = columns[i];
       const width = slices[i].width;
       let val = (row[i] != null) ? String(row[i]) : "";
+      // PATCH: ข้อ 19 "ลักษณะรถ" - ตัด suffix |1 / |2 ออกก่อนเขียน TXT
+      if (c && c.n === "ลักษณะรถ" && val.includes("|")) val = val.split("|")[0];
 
       // Blank => MUST be 0 filled to full width
       if (!val) val = "0".repeat(width);
@@ -1766,13 +1881,13 @@ function _buildTxt(){
     return line;
   });
 
-  const txt = lines.join("\r\n");
+  // DLT มักอ่าน CRLF ได้ชัวร์กว่า และใส่ท้ายไฟล์ด้วย
+  const txt = lines.join("\r\n") + (lines.length ? "\r\n" : "");
   const bytes = _encodeTIS620(txt);
   return { txt, bytes, lines };
 }
 
 async function driveSaveJob(){
-  _commitCurrentRowIfNeeded();
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); driveLogin(); return; }
   const jobKey = _getJobKey();
   if (!jobKey){
@@ -1979,7 +2094,6 @@ async function driveDeleteAllJobs(){
 // ---------- Autosave ----------
 let _autosaveTimer = null;
 function driveAutoSaveTick(){
-  _commitCurrentRowIfNeeded();
   // autosave เฉพาะตอนล็อกอิน + มีเลขงาน
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
