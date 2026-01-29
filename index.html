@@ -1394,22 +1394,26 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         }
         
         function clearAllRecords() {
-    if (!confirm("ลบรายการทั้งหมดและเริ่มลำดับใหม่?")) return;
+    if (!confirm("ลบรายการทั้งหมดและเริ่มต้นใหม่?")) return;
 
-    // ล้างข้อมูลทั้งหมด
+    // ล้างข้อมูลในหน่วยความจำ
     records = [];
 
-    // ล้าง localStorage ทั้งหมดของระบบนี้
-    localStorage.clear();
+    // ล้างเฉพาะข้อมูลที่เกี่ยวกับรายการ/ลำดับ (ไม่ล้าง key ของแท็ป)
+    localStorage.removeItem("records");
+    localStorage.removeItem("runningNo");
+    localStorage.removeItem("seq");
+    localStorage.removeItem("recordNo");
+    localStorage.removeItem("counter");
 
     // รีเฟรชหน้าจอ
     renderList();
 
     const badge = document.getElementById('badgeCount');
-    badge.innerText = 0;
-    badge.classList.add('hidden');
-}
-        }
+    if (badge) {
+        badge.innerText = 0;
+        badge.classList.add('hidden');
+    }
 
         function formatFixedWidth(text, length, padType, align) {
              let str = String(text || "");
