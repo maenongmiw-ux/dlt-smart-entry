@@ -1186,6 +1186,42 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             setTimeout(() => badge.classList.remove('animate-ping'), 500);
         }
 
+
+        // Helper: build current row from tempState WITHOUT mutating records or advancing sequence
+        function _currentRowFromTemp(){
+            let row = [];
+            columns.forEach((c, i) => {
+                let val = tempState[i] || "";
+                if (!val && c.o) {
+                    let opts = (typeof c.o === 'string') ? appData[c.o] : c.o;
+                    if (opts && opts.length > 0) val = opts[0].val;
+                }
+                if (c.isSeq) { if (!val && c.ex) val = c.ex; }
+                row.push(val);
+            });
+            // treat as meaningful if any non-empty
+            const hasData = row.some(v => (v !== null && v !== undefined && String(v).trim() !== ""));
+            return hasData ? row : null;
+        }
+
+        // Helper: commit current row into records if it's not already there (used on Save/Export)
+        function _commitCurrentRowIfNeeded(){
+            const row = _currentRowFromTemp();
+            if (!row) return false;
+            // avoid duplicate exact row
+            if (records.length && JSON.stringify(records[records.length-1]) === JSON.stringify(row)) return false;
+            // avoid duplicate sequence (index of sequence field)
+            const seqIdx = columns.findIndex(c => c.isSeq);
+            if (seqIdx >= 0) {
+                const seq = String(row[seqIdx] || "");
+                if (seq && records.some(r => String(r[seqIdx]||"") === seq)) return false;
+            }
+            records.push(row);
+            document.getElementById('badgeCount').innerText = records.length;
+            document.getElementById('badgeCount').classList.remove('hidden');
+            return true;
+        }
+
         // --- Modals ---
         function openModal(key, title) {
             currentModalTarget = key;
@@ -1299,7 +1335,8 @@ function clearAllFields() {
         }
 
         function exportToANSI() {
-  const {bytes} = _buildTxt();
+  const _commitCurrentRowIfNeeded();
+  {bytes} = _buildTxt();
   if (!bytes || !bytes.length){
     alert("ไม่มีข้อมูล");
     return;
@@ -1654,6 +1691,18 @@ function _buildTxt(){
   const slices = _getColumnSlices();
 
   let rows = (Array.isArray(records) && records.length) ? records.slice() : [];
+            // SAFETY: include current on-screen row if user didn't press "เพิ่มรายการ" yet
+            const _pending = _currentRowFromTemp();
+            if (_pending){
+                const sameAsLast = rows.length && JSON.stringify(rows[rows.length-1]) === JSON.stringify(_pending);
+                if (!sameAsLast){
+                    const seqIdx = columns.findIndex(c => c.isSeq);
+                    if (seqIdx < 0 || !rows.some(r => String(r[seqIdx]||"") === String(_pending[seqIdx]||""))){
+                        rows.push(_pending);
+                    }
+                }
+            }
+
   if (!rows.length){
     // no saved record yet -> export current form as a single line
     rows = [_rowFromTempState()];
@@ -1723,6 +1772,7 @@ function _buildTxt(){
 }
 
 async function driveSaveJob(){
+  _commitCurrentRowIfNeeded();
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); driveLogin(); return; }
   const jobKey = _getJobKey();
   if (!jobKey){
@@ -1929,6 +1979,7 @@ async function driveDeleteAllJobs(){
 // ---------- Autosave ----------
 let _autosaveTimer = null;
 function driveAutoSaveTick(){
+  _commitCurrentRowIfNeeded();
   // autosave เฉพาะตอนล็อกอิน + มีเลขงาน
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
