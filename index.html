@@ -1649,17 +1649,32 @@ function _normalizeRow(row){
 
 
 function _buildTxt(){
-  // Build TXT (fixed-length) from current records or current form state
+  // Build TXT (fixed-length) from current records ONLY.
+  // IMPORTANT: multi-record must never be overwritten by current form state.
   const slices = _getColumnSlices();
 
-  let rows = (Array.isArray(records) && records.length) ? records : [];
+  let rows = (Array.isArray(records) && records.length) ? records.slice() : [];
   if (!rows.length){
+    // no saved record yet -> export current form as a single line
     rows = [_rowFromTempState()];
-  } else {
-    // sync current form values into first record before build (fix dropdown not reflected on export/save)
-    const current = _rowFromTempState();
-    rows[0] = current;
-    records[0] = current;
+  }
+
+  // Critical guard: prevent duplicate sequence (ข้อ 3) that would indicate overwrite risk
+  let seqIdx = -1;
+  for (let i=0;i<columns.length;i++){
+    if (columns[i] && columns[i].isSeq){ seqIdx = i; break; }
+  }
+  if (seqIdx >= 0 && rows.length > 1){
+    const seen = new Set();
+    for (const r of rows){
+      const rr = _normalizeRow(r);
+      const s = String(rr[seqIdx] ?? "").replace(/\D/g,'').slice(-6).padStart(6,'0');
+      if (seen.has(s)){
+        alert("ERROR: ลำดับที่ซ้ำกัน (ข้อ 3) — ระบบจะไม่ส่งออกเพื่อกันข้อมูลทับกัน");
+        return {bytes: new Uint8Array(), text: ""};
+      }
+      seen.add(s);
+    }
   }
 
   const lines = rows.map((row0)=>{
