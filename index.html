@@ -1133,108 +1133,57 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         function saveTempState(idx, value) { tempState[idx] = value; }
 
         function switchTab(tabId) {
-            try {
-                currentTab = tabId;
-                [1, 2, 3].forEach(id => {
-                    const btn = document.getElementById(`tab${id}`);
-                    if (!btn) return;
-                    btn.className = (id === tabId)
-                        ? "tab-active px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 transform scale-105"
-                        : "tab-inactive px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 hover:bg-white";
-                });
-                render();
-            } catch (e) {
-                console.error("switchTab error:", e);
-                alert("สลับแท็บไม่ได้ (มี error ในหน้า) — เปิด F12 Console แล้วส่งรูปให้ดูหน่อย");
-            }
+            currentTab = tabId;
+            [1, 2, 3].forEach(id => {
+                const btn = document.getElementById(`tab${id}`);
+                btn.className = (id === tabId) 
+                    ? "tab-active px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 transform scale-105"
+                    : "tab-inactive px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 hover:bg-white";
+            });
+            render();
         }
 
         function addRecord() {
-            try {
-                let row = [];
-                const clearIdx = [9, 10, 11, 13, 14, 15, 16];
-
-                columns.forEach((c, i) => {
-                    let val = tempState[i] || "";
-                    if (!val && c.o) {
-                        let opts = (typeof c.o === 'string') ? appData[c.o] : c.o;
-                        if (opts && opts.length > 0) val = opts[0].val;
-                    }
-                    if (c.isSeq) {
-                        if (!val && c.ex) val = c.ex;
-                    }
-                    row.push(val);
-                });
-
-                // ensure records is array
-                if (!Array.isArray(records)) records = [];
-                records.push(row);
-
-                // Next record seq + clear some fields
-                let nextSeq = "";
-                columns.forEach((c, i) => {
-                    if (c.isSeq) {
-                        let current = parseInt(tempState[i] || c.ex || "0", 10);
-                        let next = current + 1;
-                        tempState[i] = String(next).padStart(c.l, '0');
-                        nextSeq = tempState[i];
-                    } else if (clearIdx.includes(i)) {
-                        if (!c.o) tempState[i] = "";
-                    }
-                });
-
-                const seqEl = document.getElementById('nextSeqDisplay');
-                if (seqEl) seqEl.innerText = nextSeq;
-
-                const badge = document.getElementById('badgeCount');
-                if (badge) {
-                    badge.innerText = records.length;
-                    badge.classList.remove('hidden');
-                    badge.classList.add('animate-ping');
-                    setTimeout(() => badge.classList.remove('animate-ping'), 500);
-                }
-
-                render();
-            } catch (e) {
-                console.error("addRecord error:", e);
-                alert("เพิ่มรายการไม่ได้ (มี error ในหน้า) — เปิด F12 Console แล้วส่งรูปให้ดูหน่อย");
-            }
-        }
-
-
-        // Helper: build current row from tempState WITHOUT mutating records or advancing sequence
-        function _currentRowFromTemp(){
             let row = [];
+            const clearIdx = [9, 10, 11, 13, 14, 15, 16]; 
+            
             columns.forEach((c, i) => {
                 let val = tempState[i] || "";
                 if (!val && c.o) {
                     let opts = (typeof c.o === 'string') ? appData[c.o] : c.o;
-                    if (opts && opts.length > 0) val = opts[0].val;
+                    if(opts && opts.length > 0) val = opts[0].val;
                 }
-                if (c.isSeq) { if (!val && c.ex) val = c.ex; }
+                
+                if (c.isSeq) {
+                   if (!val && c.ex) val = c.ex;
+                }
                 row.push(val);
             });
-            // treat as meaningful if any non-empty
-            const hasData = row.some(v => (v !== null && v !== undefined && String(v).trim() !== ""));
-            return hasData ? row : null;
-        }
-
-        // Helper: commit current row into records if it's not already there (used on Save/Export)
-        function _commitCurrentRowIfNeeded(){
-            const row = _currentRowFromTemp();
-            if (!row) return false;
-            // avoid duplicate exact row
-            if (records.length && JSON.stringify(records[records.length-1]) === JSON.stringify(row)) return false;
-            // avoid duplicate sequence (index of sequence field)
-            const seqIdx = columns.findIndex(c => c.isSeq);
-            if (seqIdx >= 0) {
-                const seq = String(row[seqIdx] || "");
-                if (seq && records.some(r => String(r[seqIdx]||"") === seq)) return false;
-            }
+            
             records.push(row);
+            
+            // Logic for Next Record
+            let nextSeq = "";
+            columns.forEach((c, i) => {
+                if (c.isSeq) {
+                    let current = parseInt(tempState[i] || c.ex || "0");
+                    let next = current + 1;
+                    tempState[i] = String(next).padStart(c.l, '0');
+                    nextSeq = tempState[i];
+                } else if (clearIdx.includes(i)) {
+                    if(!c.o) tempState[i] = ""; 
+                } 
+            });
+
+            document.getElementById('nextSeqDisplay').innerText = nextSeq;
             document.getElementById('badgeCount').innerText = records.length;
             document.getElementById('badgeCount').classList.remove('hidden');
-            return true;
+            render();
+            
+            // Flash Preview Badge Animation
+            const badge = document.getElementById('badgeCount');
+            badge.classList.add('animate-ping');
+            setTimeout(() => badge.classList.remove('animate-ping'), 500);
         }
 
         // --- Modals ---
@@ -1322,18 +1271,10 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             try { switchTab(1); } catch(e) { currentTab = 1; render(); }
         }
 
-function clearAllFields(){
-            try {
-                // clear only current form inputs (screen) — does not delete saved records
-                tempState = {};
-                render();
-                // reset dropdowns to first option
-                document.querySelectorAll('#dynamicForm select').forEach(sel=>{
-                    if (sel.options && sel.options.length) sel.selectedIndex = 0;
-                });
-            } catch(e){
-                console.error("clearAllFields error:", e);
-            }
+function clearAllFields() {
+             if(!confirm("ล้างข้อมูลหน้าจอทั้งหมด?")) return;
+             tempState = {};
+             render();
         }
         
         function clearAllRecords() {
@@ -1358,8 +1299,7 @@ function clearAllFields(){
         }
 
         function exportToANSI() {
-  const _commitCurrentRowIfNeeded();
-  {bytes} = _buildTxt();
+  const {bytes} = _buildTxt();
   if (!bytes || !bytes.length){
     alert("ไม่มีข้อมูล");
     return;
@@ -1709,44 +1649,17 @@ function _normalizeRow(row){
 
 
 function _buildTxt(){
-  // Build TXT (fixed-length) from current records ONLY.
-  // IMPORTANT: multi-record must never be overwritten by current form state.
+  // Build TXT (fixed-length) from current records or current form state
   const slices = _getColumnSlices();
 
-  let rows = (Array.isArray(records) && records.length) ? records.slice() : [];
-            // SAFETY: include current on-screen row if user didn't press "เพิ่มรายการ" yet
-            const _pending = _currentRowFromTemp();
-            if (_pending){
-                const sameAsLast = rows.length && JSON.stringify(rows[rows.length-1]) === JSON.stringify(_pending);
-                if (!sameAsLast){
-                    const seqIdx = columns.findIndex(c => c.isSeq);
-                    if (seqIdx < 0 || !rows.some(r => String(r[seqIdx]||"") === String(_pending[seqIdx]||""))){
-                        rows.push(_pending);
-                    }
-                }
-            }
-
+  let rows = (Array.isArray(records) && records.length) ? records : [];
   if (!rows.length){
-    // no saved record yet -> export current form as a single line
     rows = [_rowFromTempState()];
-  }
-
-  // Critical guard: prevent duplicate sequence (ข้อ 3) that would indicate overwrite risk
-  let seqIdx = -1;
-  for (let i=0;i<columns.length;i++){
-    if (columns[i] && columns[i].isSeq){ seqIdx = i; break; }
-  }
-  if (seqIdx >= 0 && rows.length > 1){
-    const seen = new Set();
-    for (const r of rows){
-      const rr = _normalizeRow(r);
-      const s = String(rr[seqIdx] ?? "").replace(/\D/g,'').slice(-6).padStart(6,'0');
-      if (seen.has(s)){
-        alert("ERROR: ลำดับที่ซ้ำกัน (ข้อ 3) — ระบบจะไม่ส่งออกเพื่อกันข้อมูลทับกัน");
-        return {bytes: new Uint8Array(), text: ""};
-      }
-      seen.add(s);
-    }
+  } else {
+    // sync current form values into first record before build (fix dropdown not reflected on export/save)
+    const current = _rowFromTempState();
+    rows[0] = current;
+    records[0] = current;
   }
 
   const lines = rows.map((row0)=>{
@@ -1795,7 +1708,6 @@ function _buildTxt(){
 }
 
 async function driveSaveJob(){
-  _commitCurrentRowIfNeeded();
   if (!driveAccessToken){ _toast("ต้องเชื่อม Drive ก่อน", "warning"); driveLogin(); return; }
   const jobKey = _getJobKey();
   if (!jobKey){
@@ -2002,7 +1914,6 @@ async function driveDeleteAllJobs(){
 // ---------- Autosave ----------
 let _autosaveTimer = null;
 function driveAutoSaveTick(){
-  _commitCurrentRowIfNeeded();
   // autosave เฉพาะตอนล็อกอิน + มีเลขงาน
   if (!driveAccessToken) return;
   const jobKey = _getJobKey();
